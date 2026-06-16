@@ -5,13 +5,15 @@ import type { ValidEnv } from '../types';
 const logLevelValues = Object.values(LogLevel);
 
 export const envSchema = Joi.object<ValidEnv>({
+  // Required environment variables
+  POSTGRES_CONNECTION_STRING: Joi.string().required(),
+  REDIS_CONNECTION_STRING: Joi.string().required(),
+  MICRO_SERVICES_PROTOCOL: Joi.string().valid('direct', 'http', 'grpc').required(),
+  // Optional environment variables
   PORT: Joi.number().port().default(8000).messages({
     'number.base': '"PORT" must be a valid number',
     'number.port': '"PORT" must be a valid port (0-65535)',
   }),
-  POSTGRES_CONNECTION_STRING: Joi.string().required(),
-  REDIS_CONNECTION_STRING: Joi.string().required(),
-  MICRO_SERVICES_PROTOCOL: Joi.string().valid('direct', 'http', 'grpc').required(),
   LOG_LEVEL: Joi.string()
     .valid(...logLevelValues)
     .default(LogLevel.Debug)
