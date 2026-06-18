@@ -1,4 +1,4 @@
-import { RedisConnection, type RedisConfig } from '@src/core/database/redis';
+import { RedisConnection, type RedisConfig } from '@src/core/connections/redis';
 import { ConfigKeys } from './config-service';
 import type { Application } from 'express';
 

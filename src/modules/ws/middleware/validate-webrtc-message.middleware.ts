@@ -2,7 +2,7 @@ import { ResponseTypes } from '../logic/constants';
 import { sendResponse } from '../logic/utils/sendResponse';
 import type { WebSocket } from 'ws';
 import type { ClientMessage } from '@src/common/types';
-import type { LoggerService } from '@src/core/logger-service';
+import type { LoggerService } from '@src/core/services/logger';
 import type { MiddlewareFactory } from '@src/lib/lucky-server';
 import type { WebRtcSignalingMessage } from '../controllers/webrtc-signaling/types';
 

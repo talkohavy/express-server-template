@@ -1,4 +1,4 @@
-import { ConfigService } from '@src/core/config-service';
+import { ConfigService } from '@src/core/services/config';
 import { configuration } from './logic/configuration';
 import type { Application } from 'express';
 import type { Config } from './logic/constants';

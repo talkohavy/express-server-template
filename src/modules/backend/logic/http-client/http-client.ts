@@ -1,7 +1,7 @@
 import { StatusCodeToError, HttpMethod, type StatusCodeValues } from '@src/common/constants';
 import { InternalServerError } from '@src/core/errors';
 import { ConfigKeys, type Config, type ServicesConfig } from '@src/plugins/config-service';
-import type { ConfigService } from '@src/core/config-service';
+import type { ConfigService } from '@src/core/services/config';
 import type { GetRequestProps, RequestProps, RequestWithBodyProps } from './http-client.interface';
 
 export class HttpClient {

@@ -1,4 +1,4 @@
-import { BUILT_IN_WEBSOCKET_EVENTS, type TopicSubscriberService } from '@src/core/topic-subscriber';
+import { BUILT_IN_WEBSOCKET_EVENTS, type TopicSubscriberService } from '@src/core/services/topic-subscriber';
 import {
   ResponseTypes,
   SocketEvents,
@@ -10,8 +10,8 @@ import {
 import { sendResponse } from '../../logic/utils/sendResponse';
 import { ValidateWebRtcMessageMiddleware } from '../../middleware/validate-webrtc-message.middleware';
 import type { WebSocket } from 'ws';
-import type { LoggerService } from '@src/core/logger-service';
-import type { TopicPublisherService } from '@src/core/topic-publisher';
+import type { LoggerService } from '@src/core/services/logger';
+import type { TopicPublisherService } from '@src/core/services/topic-publisher';
 import type { EventHandlerFactory } from '@src/lib/lucky-server';
 import type { MessageDispatcherByEventService } from '../../services/message-dispatcher-by-event';
 import type { ActionHandler } from '../../types';

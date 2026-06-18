@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws';
-import type { ServerSocketResponse } from '@src/core/topic-subscriber';
+import type { ServerSocketResponse } from '@src/core/services/topic-subscriber';
 
 type SendResponseProps = {
   socket: WebSocket;

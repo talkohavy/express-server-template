@@ -1,4 +1,4 @@
-import type { RedisConfig } from '@src/core/database/redis';
+import type { RedisConfig } from '@src/core/connections/redis';
 import type { AuthCookieConfig, CookiesConfig, JwtConfig, LoggerServiceSettings, PostgresConfig } from '../types';
 
 export const ConfigKeys = {

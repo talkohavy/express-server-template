@@ -11,7 +11,7 @@ import { getSocketsUnderTopicKey, getTopicsGroupKey, getTopicsUnderSocketKey } f
 import type { RedisClientType } from 'redis';
 import type { WebSocket } from 'ws';
 import type { TopicPayload } from '@src/common/types';
-import type { LoggerService } from '@src/core/logger-service';
+import type { LoggerService } from '@src/core/services/logger';
 import type { InterceptorFunc, RegisterInterceptorProps } from './types';
 
 /**

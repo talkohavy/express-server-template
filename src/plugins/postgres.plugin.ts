@@ -1,4 +1,4 @@
-import { PostgresConnection } from '@src/core/database/postgres.connection';
+import { PostgresConnection } from '@src/core/connections/postgres.connection';
 import { runAllMigrations } from '../databases/postgres/migrations';
 import { runAllSeeds } from '../databases/postgres/seeds';
 import { ConfigKeys, type PostgresConfig } from './config-service';

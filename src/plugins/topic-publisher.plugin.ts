@@ -1,4 +1,4 @@
-import { TopicPublisherService } from '@src/core/topic-publisher';
+import { TopicPublisherService } from '@src/core/services/topic-publisher';
 import { WS_TOPIC_PUBSUB_CHANNEL } from '@src/modules/ws/logic/constants';
 import type { Application } from 'express';
 

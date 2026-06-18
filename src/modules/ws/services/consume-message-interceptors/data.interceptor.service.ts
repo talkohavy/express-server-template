@@ -1,6 +1,6 @@
 import { StaticTopics } from '../../logic/constants';
 import type { TopicPayload } from '@src/common/types';
-import type { TopicSubscriberService } from '@src/core/topic-subscriber';
+import type { TopicSubscriberService } from '@src/core/services/topic-subscriber';
 
 export class DataInterceptorService {
   constructor(private readonly topicSubscriber: TopicSubscriberService) {}

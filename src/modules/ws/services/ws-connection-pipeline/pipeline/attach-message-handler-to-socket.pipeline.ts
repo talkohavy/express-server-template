@@ -1,4 +1,4 @@
-import { BUILT_IN_WEBSOCKET_EVENTS } from '@src/core/topic-subscriber';
+import { BUILT_IN_WEBSOCKET_EVENTS } from '@src/core/services/topic-subscriber';
 import type { WsConnectionContext, IConnectionPipeline } from '../../../types';
 import type { MessageDispatcherByEventService } from '../../message-dispatcher-by-event';
 

@@ -5,9 +5,9 @@ export type WebRtcSignalingPayload = {
 } & (
   | { type: 'sender' }
   | { type: 'receiver' }
-  | { type: 'createOffer'; sdp: RTCSessionDescriptionInit }
-  | { type: 'createAnswer'; sdp: RTCSessionDescriptionInit }
-  | { type: 'iceCandidate'; candidate: RTCIceCandidateInit }
+  | { type: 'createOffer'; sdp: any }
+  | { type: 'createAnswer'; sdp: any }
+  | { type: 'iceCandidate'; candidate: any }
 );
 
 export type WebRtcSignalingMessage = Required<ClientMessage<WebRtcSignalingPayload>>;

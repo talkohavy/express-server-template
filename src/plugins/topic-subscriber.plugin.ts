@@ -1,4 +1,4 @@
-import { TopicSubscriberService } from '@src/core/topic-subscriber';
+import { TopicSubscriberService } from '@src/core/services/topic-subscriber';
 import { WS_TOPIC_PUBSUB_CHANNEL } from '@src/modules/ws/logic/constants';
 import type { Application } from 'express';
 
