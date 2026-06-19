@@ -5,6 +5,7 @@ import { UsersMiddleware } from './middleware/users.middleware';
 import { UsersCachedRepository, UsersPostgresRepository, type IUsersRepository } from './repositories/users';
 import { FieldScreeningService } from './services/field-screening';
 import { UserUtilitiesService } from './services/user-utilities';
+import { UsersBloomFilterService } from './services/users-bloom-filter';
 import { UsersCacheMetricsService } from './services/users-cache-metrics';
 import { UsersCrudService } from './services/users-crud';
 import type { Application } from 'express';
@@ -17,6 +18,7 @@ export class UsersModule implements ModuleFactory {
   private userUtilitiesService!: UserUtilitiesService;
   private fieldScreeningService!: FieldScreeningService;
   private usersCacheMetricsService!: UsersCacheMetricsService;
+  private usersBloomFilterService!: UsersBloomFilterService;
 
   constructor(private readonly app: Application) {}
 
@@ -29,7 +31,20 @@ export class UsersModule implements ModuleFactory {
 
     this.usersCacheMetricsService = new UsersCacheMetricsService(metrics.cacheHits, metrics.cacheMisses);
 
-    this.usersRepository = new UsersCachedRepository(usersPostgresRepository, redis.pub, this.usersCacheMetricsService);
+    this.usersBloomFilterService = new UsersBloomFilterService(redis.pub);
+
+    await this.usersBloomFilterService.initialize();
+
+    const allUsers = await usersPostgresRepository.getUsers();
+    const allUserIds = allUsers.map((user) => String(user.id));
+    await this.usersBloomFilterService.seed(allUserIds);
+
+    this.usersRepository = new UsersCachedRepository(
+      usersPostgresRepository,
+      redis.pub,
+      this.usersCacheMetricsService,
+      this.usersBloomFilterService,
+    );
 
     // Initialize helper services
     this.fieldScreeningService = new FieldScreeningService(sensitiveFields, nonSensitiveFields);
