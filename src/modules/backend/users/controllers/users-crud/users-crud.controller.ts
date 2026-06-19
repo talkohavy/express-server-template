@@ -1,8 +1,10 @@
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { Permissions } from '@src/common/constants/permissions';
+import { BadRequestError } from '@src/core/errors';
 import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
 import { requirePermissionMiddleware } from '@src/middlewares/require-permission.middleware';
 import { requireUserAuthMiddleware } from '@src/middlewares/require-user-auth.middleware';
+import { UserAlreadyExistsError } from '../../../../users/logic/errors/user-already-exists.error';
 import { createUserSchema } from './dto/createUserSchema.dto';
 import { updateUserSchema } from './dto/updateUserSchema.dto';
 import type { Application, Request, Response } from 'express';
@@ -29,13 +31,21 @@ export class UsersCrudController implements ControllerFactory {
       requirePermissionMiddleware([Permissions.users.create]),
       joiBodyMiddleware(createUserSchema),
       async (req: Request, res: Response) => {
-        const { body } = req;
+        try {
+          const { body } = req;
 
-        this.app.logger.info(`POST ${API_PATHS.users} - create new user`);
+          this.app.logger.info(`POST ${API_PATHS.users} - create new user`);
 
-        const user = await this.usersAdapter.createUser(body);
+          const createdUser = await this.usersAdapter.createUser(body);
 
-        res.status(StatusCodes.CREATED).json(user);
+          res.status(StatusCodes.CREATED).json(createdUser);
+        } catch (error) {
+          if (error instanceof UserAlreadyExistsError) {
+            throw new BadRequestError(error.message, { statusCode: StatusCodes.CONFLICT });
+          }
+
+          throw error;
+        }
       },
     );
   }

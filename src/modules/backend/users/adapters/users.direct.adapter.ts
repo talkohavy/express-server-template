@@ -1,5 +1,5 @@
-import type { CreateUserDto, UpdateUserDto } from '../../../users/services/users-crud/types';
 import type { UserUtilitiesService } from '../../../users/services/user-utilities/user-utilities.service';
+import type { CreateUserDto, UpdateUserDto } from '../../../users/services/users-crud/types';
 import type { UsersCrudService } from '../../../users/services/users-crud/users-crud.service';
 import type { DatabaseUser } from '../../../users/types';
 import type { IUsersAdapter } from './users.adapter.interface';
