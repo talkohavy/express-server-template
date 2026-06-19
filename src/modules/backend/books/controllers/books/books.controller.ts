@@ -6,8 +6,8 @@ import { getBooksQuerySchema } from './dto/getBooksSchema.dto';
 import { updateBookSchema } from './dto/updateBookSchema.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { IBooksAdapter } from '../adapters/books.adapter.interface';
-import type { GetBooksParsedQuery } from '../types';
+import type { IBooksAdapter } from '../../adapters/books.adapter.interface';
+import type { GetBooksParsedQuery } from '../../types';
 
 export class BooksController implements ControllerFactory {
   constructor(

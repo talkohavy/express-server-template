@@ -2,8 +2,7 @@ import { ChannelCredentials } from '@grpc/grpc-js';
 import { ConfigKeys, type ServicesConfig } from '@src/plugins/config-service';
 import { AuthDirectAdapter, AuthHttpAdapter, AuthenticationController, type IAuthAdapter } from './authentication';
 import { BooksDirectAdapter, BooksGrpcAdapter, BooksHttpAdapter, BooksController, type IBooksAdapter } from './books';
-import { DragonsController } from './dragons';
-import { DragonsDirectAdapter, DragonsHttpAdapter, type IDragonsAdapter } from './dragons';
+import { DragonsController, DragonsDirectAdapter, DragonsHttpAdapter, type IDragonsAdapter } from './dragons';
 import {
   FileUploadDirectAdapter,
   FileUploadHttpAdapter,
@@ -11,7 +10,6 @@ import {
   type IFileUploadAdapter,
 } from './file-upload';
 import { HttpClient } from './logic/http-client';
-import { AuthenticationMiddleware } from './middleware/authentication.middleware';
 import { BooksServiceClient } from './proto/generated/backend/books/v1/books';
 import {
   UsersDirectAdapter,
@@ -70,10 +68,6 @@ export class BackendModule implements ModuleFactory {
     const booksController = new BooksController(this.app, this.booksAdapter);
     const dragonsController = new DragonsController(this.app, this.dragonsAdapter);
     const fileUploadController = new FileUploadController(this.app, this.fileUploadAdapter);
-
-    const backendMiddleware = new AuthenticationMiddleware(this.app, this.authAdapter);
-
-    backendMiddleware.use(); // <--- Attach auth middleware before protected routes (for RBAC)
 
     authController.registerRoutes();
     usersCrudController.registerRoutes();
