@@ -1,10 +1,11 @@
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { Permissions } from '@src/common/constants/permissions';
-import { BadRequestError } from '@src/core/errors';
+import { BadRequestError, NotFoundError } from '@src/core/errors';
 import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
 import { requirePermissionMiddleware } from '@src/middlewares/require-permission.middleware';
 import { requireUserAuthMiddleware } from '@src/middlewares/require-user-auth.middleware';
 import { UserAlreadyExistsError } from '../../../../users/logic/errors/user-already-exists.error';
+import { UserNotFoundError } from '../../../../users/logic/errors/user-not-found.error';
 import { createUserSchema } from './dto/createUserSchema.dto';
 import { updateUserSchema } from './dto/updateUserSchema.dto';
 import type { Application, Request, Response } from 'express';
@@ -75,15 +76,27 @@ export class UsersCrudController implements ControllerFactory {
       API_PATHS.userById,
       requirePermissionMiddleware([Permissions.users.read]),
       async (req: Request, res: Response) => {
-        const { params } = req;
+        try {
+          const { params } = req;
 
-        const userId = params.userId! as string;
+          const userId = params.userId! as string;
 
-        this.app.logger.info(`GET ${API_PATHS.userById} - get user by id`);
+          this.app.logger.info(`GET ${API_PATHS.userById} - get user by id`);
 
-        const fetchedUser = await this.usersAdapter.getUserById(userId);
+          const fetchedUser = await this.usersAdapter.getUserById(userId);
 
-        res.json(fetchedUser);
+          res.json(fetchedUser);
+        } catch (error) {
+          /**
+           * When using Direct Adapter, the thrown error is as a UserNotFoundError,
+           * however, when using Http Adapter, the error is thrown as a HttpException with status code 404.
+           */
+          if (error instanceof UserNotFoundError || error.statusCode === StatusCodes.NOT_FOUND) {
+            throw new NotFoundError(error.message);
+          }
+
+          throw error;
+        }
       },
     );
   }
