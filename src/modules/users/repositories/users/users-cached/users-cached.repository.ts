@@ -1,3 +1,4 @@
+import { parseJson } from '@src/common/utils/parseJson';
 import { USER_CACHE_TTL_SECONDS } from './logic/constants';
 import { getUserCacheKey } from './logic/utils/getUserCacheKey';
 import type { RedisClientType } from 'redis';
@@ -18,27 +19,29 @@ export class UsersCachedRepository implements IUsersRepository {
   ) {}
 
   async getUserById(userId: string, options?: GetUserByIdOptions): Promise<DatabaseUser | null> {
-    const cacheKey = getUserCacheKey(userId);
-    const cached = await this.redis.get(cacheKey);
+    const userIdCacheKey = getUserCacheKey(userId);
 
-    if (cached) {
-      return JSON.parse(cached) as DatabaseUser;
+    const userCacheHit = await this.redis.get(userIdCacheKey);
+
+    if (userCacheHit) {
+      return parseJson<DatabaseUser>(userCacheHit);
     }
 
-    const user = await this.usersRepository.getUserById(userId, options);
+    const userFromDB = await this.usersRepository.getUserById(userId, options);
 
-    if (user) {
-      await this.redis.setEx(cacheKey, USER_CACHE_TTL_SECONDS, JSON.stringify(user));
+    if (userFromDB) {
+      await this.redis.setEx(userIdCacheKey, USER_CACHE_TTL_SECONDS, JSON.stringify(userFromDB));
     }
 
-    return user;
+    return userFromDB;
   }
 
   async createUser(body: CreateUserDto): Promise<DatabaseUser> {
     const createdUser = await this.usersRepository.createUser(body);
 
-    const cacheKey = getUserCacheKey(String(createdUser.id));
-    await this.redis.setEx(cacheKey, USER_CACHE_TTL_SECONDS, JSON.stringify(createdUser));
+    const userIdCacheKey = getUserCacheKey(String(createdUser.id));
+
+    await this.redis.setEx(userIdCacheKey, USER_CACHE_TTL_SECONDS, JSON.stringify(createdUser));
 
     return createdUser;
   }
@@ -46,8 +49,9 @@ export class UsersCachedRepository implements IUsersRepository {
   async updateUserById(userId: string, body: UpdateUserDto): Promise<DatabaseUser> {
     const updatedUser = await this.usersRepository.updateUserById(userId, body);
 
-    const cacheKey = getUserCacheKey(userId);
-    await this.redis.setEx(cacheKey, USER_CACHE_TTL_SECONDS, JSON.stringify(updatedUser));
+    const userIdCacheKey = getUserCacheKey(userId);
+
+    await this.redis.setEx(userIdCacheKey, USER_CACHE_TTL_SECONDS, JSON.stringify(updatedUser));
 
     return updatedUser;
   }
@@ -55,16 +59,27 @@ export class UsersCachedRepository implements IUsersRepository {
   async deleteUserById(userId: string): Promise<boolean> {
     const result = await this.usersRepository.deleteUserById(userId);
 
-    const cacheKey = getUserCacheKey(userId);
-    await this.redis.del(cacheKey);
+    const userIdCacheKey = getUserCacheKey(userId);
+
+    await this.redis.del(userIdCacheKey);
 
     return result;
   }
 
+  /**
+   * No caching involved in this method,
+   * because so many filtering options are possible.
+   */
   async getUsers(props?: GetUsersProps): Promise<Array<DatabaseUser>> {
     return this.usersRepository.getUsers(props);
   }
 
+  /**
+   * No caching involved in this method,
+   * because so many query options are possible.
+   *
+   * I.e. requesting specific fields.
+   */
   async getUserByEmail(email: string, options?: GetUserByEmailOptions): Promise<DatabaseUser | null> {
     return this.usersRepository.getUserByEmail(email, options);
   }
