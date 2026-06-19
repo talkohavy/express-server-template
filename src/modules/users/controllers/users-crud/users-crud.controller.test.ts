@@ -2,9 +2,9 @@ import express, { type Application } from 'express';
 import request from 'supertest';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { errorHandler } from '@src/middlewares/errorHandler.middleware';
-import { giveAllPermissionsToUser } from '../../../../toolbox/tests/mocks/mockUserPermissions';
+import { giveAllPermissionsToUser } from '../../../../../toolbox/tests/mocks/mockUserPermissions';
 import { UsersCrudController } from './users-crud.controller';
-import type { UsersCrudService } from '../services/users-crud.service';
+import type { UsersCrudService } from '../../services/users-crud.service';
 
 jest.mock('@src/middlewares/joi-body.middleware', () => ({
   joiBodyMiddleware: jest.fn(() => (_req: any, _res: any, next: any) => next()),

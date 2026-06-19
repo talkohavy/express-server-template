@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { TokenVerificationService } from './token-verification/token-verification.service';
+import { TokenVerificationService } from './token-verification.service';
 
 describe('TokenVerificationService', () => {
   let service: TokenVerificationService;

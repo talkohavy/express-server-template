@@ -1,11 +1,11 @@
 import { API_PATHS } from '@src/common/constants';
 import { NotFoundError } from '@src/core/errors';
 import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
-import { UserNotFoundError } from '../logic/users.errors';
+import { UserNotFoundError } from '../../logic/errors/user-not-found.error';
 import { getUserByEmailSchema } from './dto/get-user-by-email.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { UserUtilitiesService } from '../services/user-utilities.service';
+import type { UserUtilitiesService } from '../../services/user-utilities.service';
 
 export class UserUtilitiesController implements ControllerFactory {
   constructor(

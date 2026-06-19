@@ -8,7 +8,7 @@ import { createUserSchema } from './dto/createUserSchema.dto';
 import { updateUserSchema } from './dto/updateUserSchema.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { UsersCrudService } from '../services/users-crud.service';
+import type { UsersCrudService } from '../../services/users-crud.service';
 
 export class UsersCrudController implements ControllerFactory {
   constructor(

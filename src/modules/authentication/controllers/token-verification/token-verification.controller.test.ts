@@ -3,8 +3,8 @@ import express, { type Application } from 'express';
 import request from 'supertest';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { errorHandler } from '@src/middlewares/errorHandler.middleware';
-import { TokenVerificationController } from './token-verification/token-verification.controller';
-import type { TokenVerificationService } from '../services/token-verification.service';
+import { TokenVerificationController } from './token-verification.controller';
+import type { TokenVerificationService } from '../../services/token-verification';
 
 describe('TokenVerificationController', () => {
   let app: Application;

@@ -2,7 +2,7 @@ import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { BadRequestError } from '@src/core/errors';
 import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
 import { ConfigKeys, type Config, type CookiesConfig } from '@src/plugins/config-service';
-import { UserNotFoundError } from '../../../../users/logic/users.errors';
+import { UserNotFoundError } from '../../../../users/logic/errors/user-not-found.error';
 import { loginSchema } from './dto/loginSchema.dto';
 import type { Application, CookieOptions, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';

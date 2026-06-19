@@ -1,6 +1,6 @@
-import { UserNotFoundError } from '../logic/users.errors';
+import { UserNotFoundError } from '../logic/errors/user-not-found.error';
 import { createNewUserPayload } from '../logic/utils/createNewUserPayload';
-import type { IUsersRepository } from '../repositories/interfaces/users.repository.base';
+import type { IUsersRepository } from '../repositories/types';
 import type { DatabaseUser } from '../types';
 import type { CreateUserDto, UpdateUserDto } from './interfaces/users.service.interface';
 

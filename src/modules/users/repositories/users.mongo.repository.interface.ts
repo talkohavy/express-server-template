@@ -1,6 +1,6 @@
 import type { QueryOptions } from 'mongoose';
 import type { RoleTypeValues } from '@src/common/constants';
-import type { DatabaseUser } from '../../types';
+import type { DatabaseUser } from '../types';
 
 export type GetUserByEmailOptions = {
   fields?: any;

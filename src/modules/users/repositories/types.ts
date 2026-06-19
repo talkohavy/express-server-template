@@ -1,11 +1,11 @@
-import type { DatabaseUser } from '../../types';
+import type { DatabaseUser } from '../types';
 import type {
   GetUserByIdOptions,
   GetUsersProps,
   CreateUserDto,
   UpdateUserDto,
   GetUserByEmailOptions,
-} from './users.repository.interface';
+} from './users.mongo.repository.interface';
 
 export interface IUsersRepository {
   getUserByEmail(email: string, options?: GetUserByEmailOptions): Promise<DatabaseUser | null>;

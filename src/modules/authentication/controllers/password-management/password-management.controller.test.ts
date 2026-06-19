@@ -2,8 +2,8 @@ import express, { type Application } from 'express';
 import request from 'supertest';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { errorHandler } from '@src/middlewares/errorHandler.middleware';
-import { PasswordManagementController } from './password-management/password-management.controller';
-import type { PasswordManagementService } from '../services/password-management.service';
+import { PasswordManagementController } from './password-management.controller';
+import type { PasswordManagementService } from '../../services/password-management';
 
 jest.mock('@src/middlewares/joi-body.middleware', () => ({
   joiBodyMiddleware: jest.fn(() => (_req: any, _res: any, next: any) => next()),

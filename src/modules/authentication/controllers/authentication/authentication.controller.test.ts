@@ -1,8 +1,8 @@
-import { AuthenticationController } from './authentication/authentication.controller';
-import type { PasswordManagementController } from './password-management.controller';
-import type { SessionManagementController } from './session-management.controller';
-import type { TokenGenerationController } from './token-generation.controller';
-import type { TokenVerificationController } from './token-verification.controller';
+import { AuthenticationController } from './authentication.controller';
+import type { PasswordManagementController } from '../password-management';
+import type { SessionManagementController } from '../session-management';
+import type { TokenGenerationController } from '../token-generation';
+import type { TokenVerificationController } from '../token-verification';
 
 describe('AuthenticationController', () => {
   let controller: AuthenticationController;

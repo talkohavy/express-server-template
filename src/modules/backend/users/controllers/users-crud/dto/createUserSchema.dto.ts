@@ -1,1 +1,1 @@
-export { createUserSchema } from '../../../../../users/controllers/dto/createUserSchema.dto';
+export { createUserSchema } from '../../../../../users/controllers/users-crud/dto/createUserSchema.dto';

@@ -2,9 +2,9 @@ import express, { type Application } from 'express';
 import request from 'supertest';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { errorHandler } from '@src/middlewares/errorHandler.middleware';
-import { UserNotFoundError } from '../logic/users.errors';
+import { UserNotFoundError } from '../../logic/errors/user-not-found.error';
 import { UserUtilitiesController } from './user-utilities.controller';
-import type { UserUtilitiesService } from '../services/user-utilities.service';
+import type { UserUtilitiesService } from '../../services/user-utilities.service';
 
 jest.mock('@src/middlewares/joi-body.middleware', () => ({
   joiBodyMiddleware: jest.fn(() => (_req: any, _res: any, next: any) => next()),

@@ -1,5 +1,5 @@
-import { UserNotFoundError } from '../logic/users.errors';
-import type { IUsersRepository } from '../repositories/interfaces/users.repository.base';
+import { UserNotFoundError } from '../logic/errors/user-not-found.error';
+import type { IUsersRepository } from '../repositories/types';
 import type { FieldScreeningService } from '../services/field-screening.service';
 import type { DatabaseUser } from '../types';
 
