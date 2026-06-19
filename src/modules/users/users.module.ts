@@ -1,7 +1,7 @@
 import { nonSensitiveFields, sensitiveFields } from '../../databases/mongo/models/user/user.schema.template';
 import { UserUtilitiesController } from './controllers/user-utilities';
 import { UsersCrudController } from './controllers/users-crud';
-import { UsersMiddleware } from './middleware/users.middleware';
+import { AttachUserFromHeadersMiddleware } from './middleware/attach-user-from-headers.middleware';
 import { UsersCachedRepository, UsersPostgresRepository, type IUsersRepository } from './repositories/users';
 import { FieldScreeningService } from './services/field-screening';
 import { UserUtilitiesService } from './services/user-utilities';
@@ -52,12 +52,12 @@ export class UsersModule implements ModuleFactory {
   }
 
   private attachControllers(): void {
-    const usersMiddleware = new UsersMiddleware(this.app);
+    const attachUserFromHeadersMiddleware = new AttachUserFromHeadersMiddleware(this.app);
 
     const userUtilitiesController = new UserUtilitiesController(this.app, this.userUtilitiesService);
     const usersCrudController = new UsersCrudController(this.app, this.usersCrudService);
 
-    usersMiddleware.use();
+    attachUserFromHeadersMiddleware.use();
 
     userUtilitiesController.registerRoutes();
     usersCrudController.registerRoutes();
