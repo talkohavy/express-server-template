@@ -1,4 +1,6 @@
+import { DatabaseError } from 'pg';
 import { RoleTypes } from '@src/common/constants';
+import { UserAlreadyExistsError } from '../../logic/errors/user-already-exists.error';
 import type { Client } from 'pg';
 import type { DatabaseUser } from '../../types';
 import type {
@@ -34,16 +36,27 @@ export class UsersPostgresRepository implements IUsersRepository {
   }
 
   async createUser(body: CreateUserDto): Promise<DatabaseUser> {
-    const query = `
-      INSERT INTO users (email, hashed_password, nickname, date_of_birth, role, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-      RETURNING *
-    `;
+    try {
+      const query = `
+        INSERT INTO users (email, hashed_password, nickname, date_of_birth, role, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+        RETURNING *
+      `;
 
-    const values = [body.email, body.hashed_password, body.nickname, body.date_of_birth, body.role];
+      const values = [body.email, body.hashed_password, body.nickname, body.date_of_birth, body.role];
 
-    const result = await this.pgClient.query(query, values);
-    return result.rows[0] as DatabaseUser;
+      const dbResult = await this.pgClient.query(query, values);
+
+      const createdUser = dbResult.rows[0] as DatabaseUser;
+
+      return createdUser;
+    } catch (error) {
+      if (error instanceof DatabaseError && error.code === '23505' && error.constraint === 'users_email_key') {
+        throw new UserAlreadyExistsError(body.email);
+      }
+
+      throw error;
+    }
   }
 
   async getUsers(props?: GetUsersProps): Promise<Array<DatabaseUser>> {
