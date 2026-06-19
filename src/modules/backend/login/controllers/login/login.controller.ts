@@ -9,7 +9,7 @@ import type { ControllerFactory } from '@src/lib/lucky-server';
 import type { IUsersAdapter } from '../../../users/adapters/users.adapter.interface';
 import type { IAuthAdapter } from '../../adapters/auth.adapter.interface';
 
-export class AuthenticationController implements ControllerFactory {
+export class LoginController implements ControllerFactory {
   constructor(
     private readonly app: Application,
     private readonly authAdapter: IAuthAdapter,

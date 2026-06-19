@@ -1,6 +1,5 @@
 import { ChannelCredentials } from '@grpc/grpc-js';
 import { ConfigKeys, type ServicesConfig } from '@src/plugins/config-service';
-import { AuthDirectAdapter, AuthHttpAdapter, AuthenticationController, type IAuthAdapter } from './authentication';
 import { BooksDirectAdapter, BooksGrpcAdapter, BooksHttpAdapter, BooksController, type IBooksAdapter } from './books';
 import { DragonsController, DragonsDirectAdapter, DragonsHttpAdapter, type IDragonsAdapter } from './dragons';
 import {
@@ -10,6 +9,7 @@ import {
   type IFileUploadAdapter,
 } from './file-upload';
 import { HttpClient } from './logic/http-client';
+import { AuthDirectAdapter, AuthHttpAdapter, LoginController, type IAuthAdapter } from './login';
 import { BooksServiceClient } from './proto/generated/backend/books/v1/books';
 import {
   UsersDirectAdapter,
@@ -62,14 +62,14 @@ export class BackendModule implements ModuleFactory {
 
   private attachControllers(): void {
     // BackendModule ALWAYS attaches public routes (it's the BFF)
-    const authController = new AuthenticationController(this.app, this.authAdapter, this.usersAdapter);
+    const loginController = new LoginController(this.app, this.authAdapter, this.usersAdapter);
     const usersCrudController = new UsersCrudController(this.app, this.usersAdapter);
     const userUtilitiesController = new UserUtilitiesController(this.app, this.usersAdapter, this.authAdapter);
     const booksController = new BooksController(this.app, this.booksAdapter);
     const dragonsController = new DragonsController(this.app, this.dragonsAdapter);
     const fileUploadController = new FileUploadController(this.app, this.fileUploadAdapter);
 
-    authController.registerRoutes();
+    loginController.registerRoutes();
     usersCrudController.registerRoutes();
     userUtilitiesController.registerRoutes();
     booksController.registerRoutes();
