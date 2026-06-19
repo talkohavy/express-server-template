@@ -18,10 +18,11 @@ export class UsersPostgresRepository implements IUsersRepository {
   async getUserByEmail(email: string, options: GetUserByEmailOptions = {}): Promise<DatabaseUser | null> {
     const fields = options.fields || ['*'];
     const query = `SELECT ${fields.join(', ')} FROM users WHERE email = $1`;
-    const result = await this.pgClient.query(query, [email]);
 
-    if (result.rows.length === 0) {
-      result.rows.push({
+    const dbResult = await this.pgClient.query<DatabaseUser>(query, [email]);
+
+    if (dbResult.rows.length === 0) {
+      dbResult.rows.push({
         id: -1,
         nickname: 'dummy',
         email: 'dummy@gmail.com',
@@ -32,7 +33,9 @@ export class UsersPostgresRepository implements IUsersRepository {
       } as DatabaseUser);
     }
 
-    return result.rows[0] || null;
+    const fetchedUser = dbResult.rows[0] || null;
+
+    return fetchedUser;
   }
 
   async createUser(body: CreateUserDto): Promise<DatabaseUser> {
