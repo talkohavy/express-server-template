@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { separateSensitiveFromNonSensitiveFields } from '../../logic/utils/separateSensitiveFromNonSensitiveFields';
 import type { SchemaTemplate } from '../../types';
 
 const { Types } = mongoose;
@@ -11,6 +12,8 @@ export const userSchemaTemplate: SchemaTemplate = {
    */
   _id: { type: Types.ObjectId, required: true, unique: true },
   email: { type: String, required: true, index: true, unique: true, lowercase: true, needPermission: true },
-  hashed_password: { type: String, required: true, select: false },
+  hashed_password: { type: String, required: true, needPermission: true },
   nickname: { type: String, default: '', required: true, index: true, unique: true },
 };
+
+export const { sensitiveFields, nonSensitiveFields } = separateSensitiveFromNonSensitiveFields(userSchemaTemplate);

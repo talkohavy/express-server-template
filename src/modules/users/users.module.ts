@@ -1,3 +1,4 @@
+import { nonSensitiveFields, sensitiveFields } from '../../databases/mongo/models/user/user.schema.template';
 import { UserUtilitiesController } from './controllers/user-utilities';
 import { UsersCrudController } from './controllers/users-crud';
 import { UsersMiddleware } from './middleware/users.middleware';
@@ -13,6 +14,7 @@ export class UsersModule implements ModuleFactory {
   private usersRepository!: IUsersRepository;
   private usersCrudService!: UsersCrudService;
   private userUtilitiesService!: UserUtilitiesService;
+  private fieldScreeningService!: FieldScreeningService;
 
   constructor(private readonly app: Application) {}
 
@@ -23,11 +25,11 @@ export class UsersModule implements ModuleFactory {
     this.usersRepository = new UsersCachedRepository(usersPostgresRepository, this.app.redis.pub);
 
     // Initialize helper services
-    const fieldScreeningService = new FieldScreeningService(['hashed_password'], ['nickname']);
+    this.fieldScreeningService = new FieldScreeningService(sensitiveFields, nonSensitiveFields);
 
     // Initialize main services
     this.usersCrudService = new UsersCrudService(this.usersRepository);
-    this.userUtilitiesService = new UserUtilitiesService(this.usersRepository, fieldScreeningService);
+    this.userUtilitiesService = new UserUtilitiesService(this.usersRepository, this.fieldScreeningService);
 
     // Only attach routes if running as a standalone micro-service
     if (process.env.IS_STANDALONE_MICRO_SERVICES) {

@@ -1,5 +1,6 @@
 import { Types, type ApplyBasicCreateCasting, type QueryFilter } from 'mongoose';
-import { UserModel } from '../../../../../databases/mongo/models/user/user.model';
+import { getProjection } from '@src/databases/mongo/logic/utils/getProjection';
+import { UserModel } from '@src/databases/mongo/models/user/user.model';
 import type { DatabaseUser } from '../../../types';
 import type {
   IUsersRepository,
@@ -14,17 +15,13 @@ const { ObjectId } = Types;
 
 export class UsersMongoRepository implements IUsersRepository {
   async getUserByEmail(email: string, options: GetUserByEmailOptions = {}): Promise<DatabaseUser | null> {
-    const { options: optionsRaw = {} } = options; // , fields
+    const { options: optionsRaw = {}, fields } = options;
 
-    const queryStatement: QueryFilter<Record<string, any>> = { email };
-    const fieldProjection = undefined; // getProjection(fields);
+    const queryStatement = { email } as any;
+    const fieldProjection = getProjection(fields);
     const queryOptions = { lean: true, ...optionsRaw };
 
-    const userResult = (await UserModel.findOne(
-      queryStatement,
-      fieldProjection,
-      queryOptions,
-    )) as unknown as DatabaseUser;
+    const userResult = await UserModel.findOne(queryStatement, fieldProjection, queryOptions);
 
     return userResult;
   }

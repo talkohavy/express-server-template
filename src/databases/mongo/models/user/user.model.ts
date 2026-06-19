@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { userSchemaTemplate } from './user.schema.template';
+import type { DatabaseUser } from '@src/modules/users';
 import type { SchemaTemplate } from '../../types';
 
 const { Schema, model } = mongoose;
@@ -46,4 +47,4 @@ userSchema.post('save', (doc) => {
 // Step 6: Create a model based on that schema
 // Note: The first argument (the string) has to be the singular name of the collection your model!
 // Because mongoose pluralize it, and looks for the pluralized lowercased version of the model name in your database.
-export const UserModel = model('user', userSchema);
+export const UserModel = model<DatabaseUser>('user', userSchema);
