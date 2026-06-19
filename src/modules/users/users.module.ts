@@ -13,7 +13,8 @@ import type { ModuleFactory } from '@src/lib/lucky-server';
 // import { UsersMongoRepository } from './repositories/users';
 
 export class UsersModule implements ModuleFactory {
-  private usersRepository!: IUsersRepository;
+  private usersDBRepository!: IUsersRepository;
+  private usersCachedRepository!: IUsersRepository;
   private usersCrudService!: UsersCrudService;
   private userUtilitiesService!: UserUtilitiesService;
   private fieldScreeningService!: FieldScreeningService;
@@ -25,33 +26,24 @@ export class UsersModule implements ModuleFactory {
   async init(): Promise<void> {
     const { metrics, redis, pg } = this.app;
 
-    // Initialize repositories
     // this.usersRepository = new UsersMongoRepository();
-    const usersPostgresRepository = new UsersPostgresRepository(pg);
+    this.usersDBRepository = new UsersPostgresRepository(pg);
 
+    this.fieldScreeningService = new FieldScreeningService(sensitiveFields, nonSensitiveFields);
     this.usersCacheMetricsService = new UsersCacheMetricsService(metrics.cacheHits, metrics.cacheMisses);
-
     this.usersBloomFilterService = new UsersBloomFilterService(redis.pub);
 
-    await this.usersBloomFilterService.initialize();
+    await this.populateBloomFilter(); // <--- MUST be invoked AFTER usersDBRepository is initialized
 
-    const allUsers = await usersPostgresRepository.getUsers();
-    const allUserIds = allUsers.map((user) => String(user.id));
-    await this.usersBloomFilterService.seed(allUserIds);
-
-    this.usersRepository = new UsersCachedRepository(
-      usersPostgresRepository,
+    this.usersCachedRepository = new UsersCachedRepository(
+      this.usersDBRepository,
       redis.pub,
       this.usersCacheMetricsService,
       this.usersBloomFilterService,
     );
 
-    // Initialize helper services
-    this.fieldScreeningService = new FieldScreeningService(sensitiveFields, nonSensitiveFields);
-
-    // Initialize main services
-    this.usersCrudService = new UsersCrudService(this.usersRepository);
-    this.userUtilitiesService = new UserUtilitiesService(this.usersRepository, this.fieldScreeningService);
+    this.usersCrudService = new UsersCrudService(this.usersCachedRepository);
+    this.userUtilitiesService = new UserUtilitiesService(this.usersCachedRepository, this.fieldScreeningService);
 
     // Only attach routes if running as a standalone micro-service
     if (process.env.IS_STANDALONE_MICRO_SERVICES) {
@@ -69,6 +61,13 @@ export class UsersModule implements ModuleFactory {
 
     userUtilitiesController.registerRoutes();
     usersCrudController.registerRoutes();
+  }
+
+  private async populateBloomFilter() {
+    await this.usersBloomFilterService.initialize();
+    const allUsers = await this.usersDBRepository.getUsers();
+    const allUserIds = allUsers.map((user) => String(user.id));
+    await this.usersBloomFilterService.seed(allUserIds);
   }
 
   get services() {
