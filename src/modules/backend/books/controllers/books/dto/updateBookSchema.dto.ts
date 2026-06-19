@@ -1,1 +1,1 @@
-export { updateBookSchema } from '../../../../../books/controllers/dto/updatedBook.dto';
+export { updateBookSchema } from '../../../../../books/controllers/books/dto/updatedBook.dto';

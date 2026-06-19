@@ -12,8 +12,7 @@ import type {
   UpdateBookRequest,
   UpdateBookResponse,
 } from '@src/modules/backend/proto/generated/backend/books/v1/books';
-import type { CreateBookDto, UpdateBookDto } from '@src/modules/books/services/interfaces/books.service.interface';
-import type { Book, PaginatedBooksResponse } from '@src/modules/books/types';
+import type { Book, PaginatedBooksResponse, CreateBookDto, UpdateBookDto } from '@src/modules/books';
 import type { GetBooksParsedQuery } from '../types';
 import type { IBooksAdapter } from './books.adapter.interface';
 

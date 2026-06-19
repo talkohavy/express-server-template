@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import type { Book } from '../types';
+import type { Book } from '../../types';
 
 export function generateMockBooks(count: number): Book[] {
   return Array.from({ length: count }, (_, i) => ({

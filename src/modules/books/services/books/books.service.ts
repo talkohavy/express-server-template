@@ -1,8 +1,8 @@
 import { getBoundedLimit, getBoundedPage } from '@src/common/utils/pagination';
 import { InternalServerError } from '@src/core/errors';
 import { DEFAULT_MOCK_BOOKS_COUNT, generateMockBooks } from './mock-books.generator';
-import type { Book, GetBooksParsedQuery, PaginatedBooksResponse } from '../types';
-import type { CreateBookDto, UpdateBookDto } from './interfaces/books.service.interface';
+import type { Book, GetBooksParsedQuery, PaginatedBooksResponse } from '../../types';
+import type { CreateBookDto, UpdateBookDto } from './types';
 
 const database: Array<Book> = generateMockBooks(DEFAULT_MOCK_BOOKS_COUNT);
 

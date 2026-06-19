@@ -1,1 +1,1 @@
-export { getBooksQuerySchema } from '../../../../../books/controllers/dto/getBooksQuery.dto';
+export { getBooksQuerySchema } from '../../../../../books/controllers/books/dto/getBooksQuery.dto';

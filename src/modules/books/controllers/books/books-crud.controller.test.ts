@@ -1,15 +1,15 @@
 import express, { type Application } from 'express';
 import request from 'supertest';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
-import { BooksController } from './books.controller';
-import type { BooksService } from '../services/books.service';
-import type { Book, PaginatedBooksResponse } from '../types';
+import { BooksCrudController } from './books-crud.controller';
+import type { BooksService } from '../../services/books/books.service';
+import type { Book, PaginatedBooksResponse } from '../../types';
 
 jest.mock('@src/middlewares/joi-body.middleware', () => ({
   joiBodyMiddleware: jest.fn(() => (_req: any, _res: any, next: any) => next()),
 }));
 
-describe('BooksController', () => {
+describe('BooksCrudController', () => {
   let app: Application;
   let mockBooksService: jest.Mocked<BooksService>;
 
@@ -30,7 +30,7 @@ describe('BooksController', () => {
       deleteBook: jest.fn(),
     } as any;
 
-    const controller = new BooksController(app, mockBooksService);
+    const controller = new BooksCrudController(app, mockBooksService);
     controller.registerRoutes();
   });
 

@@ -1,7 +1,6 @@
 import { API_PATHS } from '@src/common/constants';
 import { ServiceNames } from '@src/plugins/config-service';
-import type { CreateBookDto, UpdateBookDto } from '../../../books/services/interfaces/books.service.interface';
-import type { Book, PaginatedBooksResponse } from '../../../books/types';
+import type { CreateBookDto, UpdateBookDto, Book, PaginatedBooksResponse } from '../../../books';
 import type { HttpClient } from '../../logic/http-client';
 import type { GetBooksParsedQuery } from '../types';
 import type { IBooksAdapter } from './books.adapter.interface';

@@ -6,10 +6,12 @@ export class BooksMiddleware implements MiddlewareFactory {
   constructor(private readonly app: Application) {}
 
   use() {
-    this.app.use(API_PATHS.books, (_req: Request, _res: Response, next: NextFunction) => {
-      this.app.logger.log('Books middleware');
+    this.app.use(API_PATHS.books, this.apply);
+  }
 
-      next();
-    });
+  apply(_req: Request, _res: Response, next: NextFunction) {
+    this.app.logger.log('Books middleware');
+
+    next();
   }
 }

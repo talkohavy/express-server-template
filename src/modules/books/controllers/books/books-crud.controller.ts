@@ -6,10 +6,10 @@ import { getBooksQuerySchema } from './dto/getBooksQuery.dto';
 import { updateBookSchema } from './dto/updatedBook.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { BooksService } from '../services/books.service';
-import type { GetBooksParsedQuery } from '../types';
+import type { BooksService } from '../../services/books/books.service';
+import type { GetBooksParsedQuery } from '../../types';
 
-export class BooksController implements ControllerFactory {
+export class BooksCrudController implements ControllerFactory {
   constructor(
     private readonly app: Application,
     private readonly booksService: BooksService,

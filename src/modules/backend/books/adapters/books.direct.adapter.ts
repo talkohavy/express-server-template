@@ -1,5 +1,4 @@
-import type { BooksService } from '../../../books/services/books.service';
-import type { CreateBookDto, UpdateBookDto } from '../../../books/services/interfaces/books.service.interface';
+import type { BooksService, CreateBookDto, UpdateBookDto } from '../../../books';
 import type { Book, PaginatedBooksResponse } from '../../../books/types';
 import type { GetBooksParsedQuery } from '../types';
 import type { IBooksAdapter } from './books.adapter.interface';

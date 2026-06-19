@@ -12,7 +12,7 @@ import type {
   UpdateBookRequest,
   UpdateBookResponse,
 } from '@src/modules/backend/proto/generated/backend/books/v1/books';
-import type { BooksService } from '@src/modules/books/services/books.service';
+import type { BooksService } from '../../books/services/books';
 
 export class BooksGrpcController {
   constructor(

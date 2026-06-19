@@ -1,5 +1,5 @@
 import { BooksServiceService } from '../backend/proto/generated/backend/books/v1/books';
-import { BooksService } from '../books/services/books.service';
+import { BooksService } from '../books/services/books';
 import { BooksGrpcController } from './controllers/books.grpc.controller';
 import type { Server } from '@grpc/grpc-js';
 import type { ModuleFactory } from '@src/lib/lucky-server';

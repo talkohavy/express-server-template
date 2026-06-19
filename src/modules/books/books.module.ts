@@ -1,6 +1,6 @@
-import { BooksController } from './controllers/books.controller';
+import { BooksCrudController } from './controllers/books';
 import { BooksMiddleware } from './middleware/books.middleware';
-import { BooksService } from './services/books.service';
+import { BooksService } from './services/books';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
 
@@ -20,10 +20,10 @@ export class BooksModule implements ModuleFactory {
 
   private attachControllers(): void {
     const booksMiddleware = new BooksMiddleware(this.app);
-    const booksController = new BooksController(this.app, this.booksService);
+    const booksCrudController = new BooksCrudController(this.app, this.booksService);
 
     booksMiddleware.use();
-    booksController.registerRoutes();
+    booksCrudController.registerRoutes();
   }
 
   get services() {
