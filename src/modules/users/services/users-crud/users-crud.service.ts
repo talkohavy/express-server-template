@@ -1,8 +1,8 @@
-import { UserNotFoundError } from '../logic/errors/user-not-found.error';
-import { createNewUserPayload } from '../logic/utils/createNewUserPayload';
-import type { IUsersRepository } from '../repositories/types';
-import type { DatabaseUser } from '../types';
-import type { CreateUserDto, UpdateUserDto } from './interfaces/users.service.interface';
+import { UserNotFoundError } from '../../logic/errors/user-not-found.error';
+import { createNewUserPayload } from '../../logic/utils/createNewUserPayload';
+import type { IUsersRepository } from '../../repositories/users/types';
+import type { DatabaseUser } from '../../types';
+import type { CreateUserDto, UpdateUserDto } from './types';
 
 export class UsersCrudService {
   constructor(private readonly usersRepository: IUsersRepository) {}

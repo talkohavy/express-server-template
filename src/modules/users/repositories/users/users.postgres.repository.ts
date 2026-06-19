@@ -1,14 +1,14 @@
 import { RoleTypes } from '@src/common/constants';
 import type { Client } from 'pg';
-import type { DatabaseUser } from '../types';
-import type { IUsersRepository } from './types';
+import type { DatabaseUser } from '../../types';
 import type {
+  IUsersRepository,
   GetUserByIdOptions,
   GetUsersProps,
   CreateUserDto,
   UpdateUserDto,
   GetUserByEmailOptions,
-} from './users.mongo.repository.interface';
+} from './types';
 
 export class UsersPostgresRepository implements IUsersRepository {
   constructor(private readonly pgClient: Client) {}

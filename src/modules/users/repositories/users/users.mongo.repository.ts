@@ -1,14 +1,14 @@
 import { Types, type ApplyBasicCreateCasting, type QueryFilter } from 'mongoose';
-import { UserModel } from '../../../databases/mongo/models/user/user.model';
-import type { DatabaseUser } from '../types';
-import type { IUsersRepository } from './types';
+import { UserModel } from '../../../../databases/mongo/models/user/user.model';
+import type { DatabaseUser } from '../../types';
 import type {
+  IUsersRepository,
   GetUserByIdOptions,
   GetUsersProps,
   CreateUserDto,
   UpdateUserDto,
   GetUserByEmailOptions,
-} from './users.mongo.repository.interface';
+} from './types';
 
 const { ObjectId } = Types;
 

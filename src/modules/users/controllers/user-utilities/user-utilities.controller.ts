@@ -5,7 +5,7 @@ import { UserNotFoundError } from '../../logic/errors/user-not-found.error';
 import { getUserByEmailSchema } from './dto/get-user-by-email.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { UserUtilitiesService } from '../../services/user-utilities.service';
+import type { UserUtilitiesService } from '../../services/user-utilities/user-utilities.service';
 
 export class UserUtilitiesController implements ControllerFactory {
   constructor(

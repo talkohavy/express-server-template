@@ -1,6 +1,6 @@
 import { API_PATHS } from '@src/common/constants';
 import { ServiceNames } from '@src/plugins/config-service';
-import type { CreateUserDto, UpdateUserDto } from '../../../users/services/interfaces/users.service.interface';
+import type { CreateUserDto, UpdateUserDto } from '../../../users/services/users-crud/types';
 import type { DatabaseUser } from '../../../users/types';
 import type { HttpClient } from '../../logic/http-client';
 import type { IUsersAdapter } from './users.adapter.interface';

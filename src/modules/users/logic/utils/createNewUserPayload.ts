@@ -1,5 +1,5 @@
 import { RoleTypes } from '@src/common/constants';
-import type { CreateUserDto } from '../../services/interfaces/users.service.interface';
+import type { CreateUserDto } from '../../services/users-crud/types';
 import type { DatabaseUser } from '../../types';
 
 export function createNewUserPayload(body: CreateUserDto) {

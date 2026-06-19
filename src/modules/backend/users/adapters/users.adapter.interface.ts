@@ -1,4 +1,4 @@
-import type { CreateUserDto, UpdateUserDto } from '../../../users/services/interfaces/users.service.interface';
+import type { CreateUserDto, UpdateUserDto } from '../../../users/services/users-crud/types';
 import type { DatabaseUser } from '../../../users/types';
 
 export interface IUsersAdapter {

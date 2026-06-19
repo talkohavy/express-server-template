@@ -1,14 +1,13 @@
-import { UserUtilitiesController } from './controllers/user-utilities/user-utilities.controller';
-import { UsersCrudController } from './controllers/users-crud/users-crud.controller';
+import { UserUtilitiesController } from './controllers/user-utilities';
+import { UsersCrudController } from './controllers/users-crud';
 import { UsersMiddleware } from './middleware/users.middleware';
-import { UsersPostgresRepository } from './repositories/users.postgres.repository';
-import { FieldScreeningService } from './services/field-screening.service';
-import { UserUtilitiesService } from './services/user-utilities.service';
-import { UsersCrudService } from './services/users-crud.service';
+import { UsersPostgresRepository, type IUsersRepository } from './repositories/users';
+import { FieldScreeningService } from './services/field-screening';
+import { UserUtilitiesService } from './services/user-utilities';
+import { UsersCrudService } from './services/users-crud';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
-import type { IUsersRepository } from './repositories/types';
-// import { UsersMongoRepository } from './repositories/users.mongo.repository';
+// import { UsersMongoRepository } from './repositories/users';
 
 export class UsersModule implements ModuleFactory {
   private usersRepository!: IUsersRepository;
