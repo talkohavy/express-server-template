@@ -23,7 +23,7 @@ export const API_PATHS = {
   uploadFileMultipart: '/api/upload-file/multipart',
   uploadFileBinary: '/api/upload-file/binary',
   // metrics
-  metrics: '/metrics',
+  metrics: '/api/metrics',
   // backend
   backendMiddleware: '/api/backend',
   internalWsState: '/api/internal/ws-state',
