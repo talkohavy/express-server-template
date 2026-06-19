@@ -1,13 +1,13 @@
 import { ConfigKeys, type JwtConfig } from '@src/plugins/config-service';
-import { AuthenticationController } from './controllers';
-import { PasswordManagementController } from './controllers/password-management.controller';
-import { SessionManagementController } from './controllers/session-management.controller';
-import { TokenGenerationController } from './controllers/token-generation.controller';
-import { TokenVerificationController } from './controllers/token-verification.controller';
+import { AuthenticationController } from './controllers/authentication';
+import { PasswordManagementController } from './controllers/password-management';
+import { SessionManagementController } from './controllers/session-management';
+import { TokenGenerationController } from './controllers/token-generation';
+import { TokenVerificationController } from './controllers/token-verification';
 import { AuthenticationMiddleware } from './middleware/authentication.middleware';
-import { PasswordManagementService } from './services/password-management.service';
-import { TokenGenerationService } from './services/token-generation.service';
-import { TokenVerificationService } from './services/token-verification.service';
+import { PasswordManagementService } from './services/password-management/password-management.service';
+import { TokenGenerationService } from './services/token-generation/token-generation.service';
+import { TokenVerificationService } from './services/token-verification/token-verification.service';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
 

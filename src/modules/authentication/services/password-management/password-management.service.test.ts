@@ -1,4 +1,4 @@
-import { PasswordManagementService } from './password-management.service';
+import { PasswordManagementService } from './password-management/password-management.service';
 
 describe('PasswordManagementService', () => {
   let service: PasswordManagementService;

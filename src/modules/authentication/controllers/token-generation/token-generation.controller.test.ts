@@ -1,7 +1,7 @@
 import express, { type Application } from 'express';
 import request from 'supertest';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
-import { TokenGenerationController } from './token-generation.controller';
+import { TokenGenerationController } from './token-generation/token-generation.controller';
 import type { TokenGenerationService } from '../services/token-generation.service';
 
 jest.mock('@src/middlewares/joi-body.middleware', () => ({

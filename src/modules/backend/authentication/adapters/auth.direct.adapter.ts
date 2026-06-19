@@ -1,6 +1,6 @@
-import type { PasswordManagementService } from '../../../authentication/services/password-management.service';
-import type { TokenGenerationService } from '../../../authentication/services/token-generation.service';
-import type { TokenVerificationService } from '../../../authentication/services/token-verification.service';
+import type { PasswordManagementService } from '../../../authentication/services/password-management';
+import type { TokenGenerationService } from '../../../authentication/services/token-generation';
+import type { TokenVerificationService } from '../../../authentication/services/token-verification';
 import type { IAuthAdapter, Tokens, DecodedToken } from './auth.adapter.interface';
 
 export class AuthDirectAdapter implements IAuthAdapter {

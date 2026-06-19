@@ -3,7 +3,7 @@ import { UnauthorizedError } from '@src/core/errors';
 import { ConfigKeys, type CookiesConfig } from '@src/plugins/config-service';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { TokenVerificationService } from '../services/token-verification.service';
+import type { TokenVerificationService } from '../../services/token-verification/token-verification.service';
 
 export class TokenVerificationController implements ControllerFactory {
   constructor(

@@ -3,7 +3,7 @@ import express, { type Application } from 'express';
 import request from 'supertest';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { errorHandler } from '@src/middlewares/errorHandler.middleware';
-import { TokenVerificationController } from './token-verification.controller';
+import { TokenVerificationController } from './token-verification/token-verification.controller';
 import type { TokenVerificationService } from '../services/token-verification.service';
 
 describe('TokenVerificationController', () => {

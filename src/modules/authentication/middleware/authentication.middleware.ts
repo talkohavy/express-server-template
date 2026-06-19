@@ -6,10 +6,12 @@ export class AuthenticationMiddleware implements MiddlewareFactory {
   constructor(private readonly app: Application) {}
 
   use() {
-    this.app.use(API_PATHS.auth, (_req: Request, _res: Response, next: NextFunction): void => {
-      console.log('authentication middleware');
+    this.app.use(API_PATHS.auth, this.apply);
+  }
 
-      next();
-    });
+  apply(_req: Request, _res: Response, next: NextFunction) {
+    console.log('authentication middleware');
+
+    next();
   }
 }

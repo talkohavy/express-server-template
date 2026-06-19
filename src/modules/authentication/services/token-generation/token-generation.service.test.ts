@@ -1,4 +1,4 @@
-import { TokenGenerationService } from '../services/token-generation.service';
+import { TokenGenerationService } from './token-generation/token-generation.service';
 import type { JwtConfig } from '@src/plugins/config-service';
 
 describe('TokenGenerationService', () => {

@@ -1,8 +1,8 @@
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { PasswordManagementController } from './password-management.controller';
-import type { SessionManagementController } from './session-management.controller';
-import type { TokenGenerationController } from './token-generation.controller';
-import type { TokenVerificationController } from './token-verification.controller';
+import type { PasswordManagementController } from '../password-management/password-management.controller';
+import type { SessionManagementController } from '../session-management/session-management.controller';
+import type { TokenGenerationController } from '../token-generation/token-generation.controller';
+import type { TokenVerificationController } from '../token-verification/token-verification.controller';
 
 export class AuthenticationController implements ControllerFactory {
   constructor(

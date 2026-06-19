@@ -4,7 +4,7 @@ import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
 import { getIsPasswordValidSchema } from './dto/get-is-password-valid.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { PasswordManagementService } from '../services/password-management.service';
+import type { PasswordManagementService } from '../../services/password-management/password-management.service';
 
 export class PasswordManagementController implements ControllerFactory {
   constructor(

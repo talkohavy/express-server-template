@@ -1,4 +1,4 @@
-import { AuthenticationController } from './authentication.controller';
+import { AuthenticationController } from './authentication/authentication.controller';
 import type { PasswordManagementController } from './password-management.controller';
 import type { SessionManagementController } from './session-management.controller';
 import type { TokenGenerationController } from './token-generation.controller';
