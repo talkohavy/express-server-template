@@ -1,0 +1,1 @@
+export const USER_CACHE_TTL_SECONDS = 3600;

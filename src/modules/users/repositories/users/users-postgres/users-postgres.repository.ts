@@ -1,8 +1,8 @@
 import { DatabaseError } from 'pg';
 import { RoleTypes } from '@src/common/constants';
-import { UserAlreadyExistsError } from '../../logic/errors/user-already-exists.error';
+import { UserAlreadyExistsError } from '../../../logic/errors/user-already-exists.error';
 import type { Client } from 'pg';
-import type { DatabaseUser } from '../../types';
+import type { DatabaseUser } from '../../../types';
 import type {
   IUsersRepository,
   GetUserByIdOptions,
@@ -10,7 +10,7 @@ import type {
   CreateUserDto,
   UpdateUserDto,
   GetUserByEmailOptions,
-} from './types';
+} from '../types';
 
 export class UsersPostgresRepository implements IUsersRepository {
   constructor(private readonly pgClient: Client) {}

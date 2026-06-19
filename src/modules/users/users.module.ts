@@ -1,7 +1,7 @@
 import { UserUtilitiesController } from './controllers/user-utilities';
 import { UsersCrudController } from './controllers/users-crud';
 import { UsersMiddleware } from './middleware/users.middleware';
-import { UsersPostgresRepository, type IUsersRepository } from './repositories/users';
+import { UsersCachedRepository, UsersPostgresRepository, type IUsersRepository } from './repositories/users';
 import { FieldScreeningService } from './services/field-screening';
 import { UserUtilitiesService } from './services/user-utilities';
 import { UsersCrudService } from './services/users-crud';
@@ -19,7 +19,8 @@ export class UsersModule implements ModuleFactory {
   async init(): Promise<void> {
     // Initialize repositories
     // this.usersRepository = new UsersMongoRepository(this.app.mongo);
-    this.usersRepository = new UsersPostgresRepository(this.app.pg);
+    const usersPostgresRepository = new UsersPostgresRepository(this.app.pg);
+    this.usersRepository = new UsersCachedRepository(usersPostgresRepository, this.app.redis.pub);
 
     // Initialize helper services
     const fieldScreeningService = new FieldScreeningService(['hashed_password'], ['nickname']);

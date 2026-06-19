@@ -1,5 +1,6 @@
-export { UsersPostgresRepository } from './users.postgres.repository';
-export { UsersMongoRepository } from './users.mongo.repository';
+export { UsersPostgresRepository } from './users-postgres';
+export { UsersMongoRepository } from './users-mongo';
+export { UsersCachedRepository } from './users-cached';
 
 // types
 export type * from './types';

@@ -1,6 +1,6 @@
 import { Types, type ApplyBasicCreateCasting, type QueryFilter } from 'mongoose';
-import { UserModel } from '../../../../databases/mongo/models/user/user.model';
-import type { DatabaseUser } from '../../types';
+import { UserModel } from '../../../../../databases/mongo/models/user/user.model';
+import type { DatabaseUser } from '../../../types';
 import type {
   IUsersRepository,
   GetUserByIdOptions,
@@ -8,7 +8,7 @@ import type {
   CreateUserDto,
   UpdateUserDto,
   GetUserByEmailOptions,
-} from './types';
+} from '../types';
 
 const { ObjectId } = Types;
 

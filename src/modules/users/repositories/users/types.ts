@@ -1,4 +1,3 @@
-import type { QueryOptions } from 'mongoose';
 import type { RoleTypeValues } from '@src/common/constants';
 import type { DatabaseUser } from '../../types';
 
@@ -16,7 +15,7 @@ export type GetUserByEmailOptions = {
   /**
    * _**lean**_ option is set to `true` by default.
    */
-  options?: QueryOptions;
+  options?: any;
 };
 
 export type CreateUserDto = Omit<DatabaseUser, 'id'>;
