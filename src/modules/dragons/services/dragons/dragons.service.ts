@@ -1,9 +1,7 @@
+import { DRAGON_ID_COUNTER_KEY, DRAGONS_KEY } from '../../logic/constants';
 import type { RedisClientType } from 'redis';
-import type { Dragon } from '../types';
-import type { CreateDragonDto, UpdateDragonDto } from './interfaces/dragons.service.interface';
-
-const DRAGONS_KEY = 'dragons';
-const DRAGON_ID_COUNTER_KEY = 'dragons:id_counter';
+import type { Dragon } from '../../types';
+import type { CreateDragonDto, UpdateDragonDto } from './types';
 
 export class DragonsService {
   constructor(private readonly redis: RedisClientType) {}

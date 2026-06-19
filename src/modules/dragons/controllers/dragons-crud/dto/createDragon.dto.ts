@@ -1,5 +1,5 @@
 import Joi from 'joi';
-import { DragonElements } from '../../logic/constants';
+import { DragonElements } from '../../../logic/constants';
 
 const validElementValues = Object.values(DragonElements);
 

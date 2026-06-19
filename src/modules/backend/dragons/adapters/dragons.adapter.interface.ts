@@ -1,4 +1,4 @@
-import type { CreateDragonDto, UpdateDragonDto } from '../../../dragons/services/interfaces/dragons.service.interface';
+import type { CreateDragonDto, UpdateDragonDto } from '../../../dragons/services/dragons/types';
 import type { Dragon } from '../../../dragons/types';
 
 export interface IDragonsAdapter {

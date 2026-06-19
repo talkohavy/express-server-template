@@ -4,10 +4,10 @@ import { createDragonSchema } from './dto/createDragon.dto';
 import { updateDragonSchema } from './dto/updateDragon.dto';
 import type { Application } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { DragonsService } from '../services/dragons.service';
-import type { UpdateDragonDto } from '../services/interfaces/dragons.service.interface';
+import type { DragonsService } from '../../services/dragons/dragons.service';
+import type { UpdateDragonDto } from '../../services/dragons/types';
 
-export class DragonsController implements ControllerFactory {
+export class DragonsCrudController implements ControllerFactory {
   constructor(
     private readonly app: Application,
     private readonly dragonService: DragonsService,

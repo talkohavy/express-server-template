@@ -1,5 +1,5 @@
-import { DragonsController } from './controllers/dragons.controller';
-import { DragonsService } from './services/dragons.service';
+import { DragonsCrudController } from './controllers/dragons-crud/dragons-crud.controller';
+import { DragonsService } from './services/dragons';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
 
@@ -18,9 +18,9 @@ export class DragonsModule implements ModuleFactory {
   }
 
   private attachControllers(): void {
-    const dragonsController = new DragonsController(this.app, this.dragonsService);
+    const dragonsCrudController = new DragonsCrudController(this.app, this.dragonsService);
 
-    dragonsController.registerRoutes();
+    dragonsCrudController.registerRoutes();
   }
 
   get services() {

@@ -1,1 +1,1 @@
-export { updateDragonSchema } from '../../../../../dragons/controllers/dto/updateDragon.dto';
+export { updateDragonSchema } from '../../../../../dragons/controllers/dragons-crud/dto/updateDragon.dto';

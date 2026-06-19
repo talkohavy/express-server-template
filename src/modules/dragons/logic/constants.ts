@@ -8,3 +8,6 @@ export const DragonElements = {
 } as const;
 
 export type DragonElementValues = (typeof DragonElements)[keyof typeof DragonElements];
+
+export const DRAGONS_KEY = 'dragons';
+export const DRAGON_ID_COUNTER_KEY = 'dragons:id_counter';

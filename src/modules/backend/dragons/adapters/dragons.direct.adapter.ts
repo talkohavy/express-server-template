@@ -1,5 +1,5 @@
-import type { DragonsService } from '../../../dragons/services/dragons.service';
-import type { CreateDragonDto, UpdateDragonDto } from '../../../dragons/services/interfaces/dragons.service.interface';
+import type { DragonsService } from '../../../dragons/services/dragons/dragons.service';
+import type { CreateDragonDto, UpdateDragonDto } from '../../../dragons/services/dragons/types';
 import type { Dragon } from '../../../dragons/types';
 import type { IDragonsAdapter } from './dragons.adapter.interface';
 
