@@ -13,15 +13,18 @@ import type { BooksModule } from '@src/modules/books';
 import type { DragonsModule } from '@src/modules/dragons';
 import type { FileUploadModule } from '@src/modules/file-upload';
 import type { HealthCheckModule } from '@src/modules/health-check';
+import type { MetricsModule } from '@src/modules/metrics';
 import type { RedisDebugModule } from '@src/modules/redis-debug';
 import type { SwaggerModule } from '@src/modules/swagger';
 import type { UsersModule } from '@src/modules/users';
 import type { WsModule } from '@src/modules/ws';
+import type { AppMetrics } from './metrics';
 
 export interface OptimizedApp {
   modules: {
     AuthenticationModule: AuthenticationModule;
     HealthCheckModule: HealthCheckModule;
+    MetricsModule: MetricsModule;
     UsersModule: UsersModule;
     BooksModule: BooksModule;
     DragonsModule: DragonsModule;
@@ -30,6 +33,7 @@ export interface OptimizedApp {
     WsModule: WsModule;
     SwaggerModule: SwaggerModule;
   };
+  metrics: AppMetrics;
   configService: ConfigService;
   callContextService: CallContextService;
   redis: {

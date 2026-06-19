@@ -2,6 +2,7 @@ import { parseJson } from '@src/common/utils/parseJson';
 import { USER_CACHE_TTL_SECONDS } from './logic/constants';
 import { getUserCacheKey } from './logic/utils/getUserCacheKey';
 import type { RedisClientType } from 'redis';
+import type { UsersCacheMetricsService } from '../../../services/users-cache-metrics';
 import type { DatabaseUser } from '../../../types';
 import type {
   IUsersRepository,
@@ -16,6 +17,7 @@ export class UsersCachedRepository implements IUsersRepository {
   constructor(
     private readonly usersRepository: IUsersRepository,
     private readonly redis: RedisClientType,
+    private readonly cacheMetrics: UsersCacheMetricsService,
   ) {}
 
   async getUserById(userId: string, options?: GetUserByIdOptions): Promise<DatabaseUser | null> {
@@ -24,8 +26,11 @@ export class UsersCachedRepository implements IUsersRepository {
     const userCacheHit = await this.redis.get(userIdCacheKey);
 
     if (userCacheHit) {
+      this.cacheMetrics.onHit();
       return parseJson<DatabaseUser>(userCacheHit);
     }
+
+    this.cacheMetrics.onMiss();
 
     const userFromDB = await this.usersRepository.getUserById(userId, options);
 

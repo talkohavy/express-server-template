@@ -5,6 +5,7 @@ import { UsersMiddleware } from './middleware/users.middleware';
 import { UsersCachedRepository, UsersPostgresRepository, type IUsersRepository } from './repositories/users';
 import { FieldScreeningService } from './services/field-screening';
 import { UserUtilitiesService } from './services/user-utilities';
+import { UsersCacheMetricsService } from './services/users-cache-metrics';
 import { UsersCrudService } from './services/users-crud';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
@@ -15,14 +16,20 @@ export class UsersModule implements ModuleFactory {
   private usersCrudService!: UsersCrudService;
   private userUtilitiesService!: UserUtilitiesService;
   private fieldScreeningService!: FieldScreeningService;
+  private usersCacheMetricsService!: UsersCacheMetricsService;
 
   constructor(private readonly app: Application) {}
 
   async init(): Promise<void> {
+    const { metrics, redis, pg } = this.app;
+
     // Initialize repositories
-    // this.usersRepository = new UsersMongoRepository(this.app.mongo);
-    const usersPostgresRepository = new UsersPostgresRepository(this.app.pg);
-    this.usersRepository = new UsersCachedRepository(usersPostgresRepository, this.app.redis.pub);
+    // this.usersRepository = new UsersMongoRepository();
+    const usersPostgresRepository = new UsersPostgresRepository(pg);
+
+    this.usersCacheMetricsService = new UsersCacheMetricsService(metrics.cacheHits, metrics.cacheMisses);
+
+    this.usersRepository = new UsersCachedRepository(usersPostgresRepository, redis.pub, this.usersCacheMetricsService);
 
     // Initialize helper services
     this.fieldScreeningService = new FieldScreeningService(sensitiveFields, nonSensitiveFields);

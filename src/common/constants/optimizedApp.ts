@@ -7,6 +7,7 @@ export const optimizedApp: OptimizedApp = {
   modules: {
     AuthenticationModule: null as any,
     HealthCheckModule: null as any,
+    MetricsModule: null as any,
     UsersModule: null as any,
     BooksModule: null as any,
     DragonsModule: null as any,
@@ -15,6 +16,7 @@ export const optimizedApp: OptimizedApp = {
     RedisDebugModule: null as any,
     SwaggerModule: null as any,
   },
+  metrics: null as any,
   configService: null as any,
   redis: {
     pub: null as any,
