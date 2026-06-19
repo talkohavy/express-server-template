@@ -40,7 +40,11 @@ export class UsersCrudController implements ControllerFactory {
 
           res.status(StatusCodes.CREATED).json(createdUser);
         } catch (error) {
-          if (error instanceof UserAlreadyExistsError) {
+          /**
+           * When using Direct Adapter, the thrown error is as a UserAlreadyExistsError,
+           * however, when using Http Adapter, the error is thrown as a HttpException with status code 409.
+           */
+          if (error instanceof UserAlreadyExistsError || error.statusCode === StatusCodes.CONFLICT) {
             throw new BadRequestError(error.message, { statusCode: StatusCodes.CONFLICT });
           }
 
