@@ -2,6 +2,8 @@ import { parseJson } from '@src/common/utils/parseJson';
 import { USER_CACHE_TTL_SECONDS } from './logic/constants';
 import { getUserCacheKey } from './logic/utils/getUserCacheKey';
 import type { RedisClientType } from 'redis';
+import type { UsersBloomFilterService } from '../../../services/users-bloom-filter';
+import type { UsersCacheMetricsService } from '../../../services/users-cache-metrics';
 import type { DatabaseUser } from '../../../types';
 import type {
   IUsersRepository,
@@ -16,16 +18,25 @@ export class UsersCachedRepository implements IUsersRepository {
   constructor(
     private readonly usersRepository: IUsersRepository,
     private readonly redis: RedisClientType,
+    private readonly userMetricsService: UsersCacheMetricsService,
+    private readonly bloomFilterService: UsersBloomFilterService,
   ) {}
 
   async getUserById(userId: string, options?: GetUserByIdOptions): Promise<DatabaseUser | null> {
+    const idMightExist = await this.bloomFilterService.mightExist(userId);
+
+    if (!idMightExist) return null;
+
     const userIdCacheKey = getUserCacheKey(userId);
 
     const userCacheHit = await this.redis.get(userIdCacheKey);
 
     if (userCacheHit) {
+      this.userMetricsService.onHit();
       return parseJson<DatabaseUser>(userCacheHit);
     }
+
+    this.userMetricsService.onMiss();
 
     const userFromDB = await this.usersRepository.getUserById(userId, options);
 
@@ -41,7 +52,10 @@ export class UsersCachedRepository implements IUsersRepository {
 
     const userIdCacheKey = getUserCacheKey(String(createdUser.id));
 
-    await this.redis.setEx(userIdCacheKey, USER_CACHE_TTL_SECONDS, JSON.stringify(createdUser));
+    await Promise.all([
+      this.redis.setEx(userIdCacheKey, USER_CACHE_TTL_SECONDS, JSON.stringify(createdUser)),
+      this.bloomFilterService.add(String(createdUser.id)),
+    ]);
 
     return createdUser;
   }

@@ -15,6 +15,7 @@ import { BooksModule } from './modules/books';
 import { DragonsModule } from './modules/dragons';
 import { FileUploadModule } from './modules/file-upload';
 import { HealthCheckModule } from './modules/health-check';
+import { MetricsModule } from './modules/metrics';
 import { RedisDebugModule } from './modules/redis-debug';
 // import { ServerSentEventModule } from './modules/serverSentEvents';
 import { SocketIOModule } from './modules/socketio';
@@ -25,6 +26,7 @@ import { callContextPlugin } from './plugins/call-context.plugin';
 import { configServicePlugin } from './plugins/config-service';
 import { httpServerPlugin } from './plugins/http-server.plugin';
 import { loggerPlugin } from './plugins/logger.plugin';
+import { metricsPlugin } from './plugins/metrics.plugin';
 import { postgresPlugin } from './plugins/postgres.plugin';
 import { redisPlugin } from './plugins/redis.plugin';
 import { socketIOPlugin } from './plugins/socket.io.plugin';
@@ -43,9 +45,10 @@ export async function buildApp(app: Application) {
   await appModule.registerPlugins([
     configServicePlugin,
     callContextPlugin,
-    loggerPlugin, // <--- dependencies: config-service plugin, call-context plugin
-    postgresPlugin, // <--- dependencies: config-service plugin
-    redisPlugin, // <--- dependencies: config-service plugin
+    loggerPlugin,
+    metricsPlugin,
+    postgresPlugin,
+    redisPlugin,
     httpServerPlugin,
     topicPublisherPlugin,
     topicSubscriberPlugin,
@@ -66,6 +69,7 @@ export async function buildApp(app: Application) {
   await appModule.registerModules([
     // - Main modules (service providers)
     HealthCheckModule,
+    MetricsModule,
     AuthenticationModule,
     UsersModule,
     BooksModule,

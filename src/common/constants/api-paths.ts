@@ -22,6 +22,8 @@ export const API_PATHS = {
   // upload file
   uploadFileMultipart: '/api/upload-file/multipart',
   uploadFileBinary: '/api/upload-file/binary',
+  // metrics
+  metrics: '/api/metrics',
   // backend
   backendMiddleware: '/api/backend',
   internalWsState: '/api/internal/ws-state',
@@ -30,4 +32,4 @@ export const API_PATHS = {
 /**
  * Paths that should be excluded from certain middlewares
  */
-export const EXCLUDED_PATHS = [API_PATHS.healthCheck] as string[];
+export const EXCLUDED_PATHS = [API_PATHS.healthCheck, API_PATHS.metrics] as string[];
