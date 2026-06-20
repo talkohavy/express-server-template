@@ -16,8 +16,9 @@ const mockApp = {
 } as unknown as Application;
 
 describe('SwaggerModule', () => {
-  it('should create instance and initialize swagger middleware', () => {
+  it('should create instance and initialize swagger middleware', async () => {
     const instance = new SwaggerModule(mockApp);
+    await instance.init();
 
     expect(instance).toBeInstanceOf(SwaggerModule);
     expect(mockSwaggerController.registerRoutes).toHaveBeenCalled();
