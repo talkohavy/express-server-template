@@ -12,6 +12,7 @@ alwaysApply: false
 - global middleware should live under: `./src/middlewares/`
 - a middleware file must be named: `[name].middleware.ts`
 - global middleware is registered as a **function** exported as `registerXxxMiddleware(app: Application)` that calls `app.use(...)`.
+- **Never register middleware inside a plugin file (`*.plugin.ts`).** Plugin files must not call `app.use(...)` under any circumstances.
 - register global middleware in `buildApp.ts` via `AppFactory.registerMiddleware([...])`, **after** `registerPlugins` and **before** `registerModules`.
 - order matters when middleware depends on plugin-attached services (e.g. logger, config).
 

@@ -12,7 +12,7 @@ alwaysApply: false
 - Create a plugin when you need to:
   - Attach an **infrastructure service** used across multiple modules (config, logger, DB clients, Redis)
   - Set up **shared resources** that modules depend on before they initialize
-- Do **not** use plugins for global middleware (CORS, body parsing, security headers). Use `registerMiddleware` in `buildApp.ts` and place registrars under `./src/middlewares/`.
+- **Never call `app.use(...)` inside a plugin file.** Plugins must never attach middleware — not even a single `app.use()` call. Middleware registration is strictly owned by `registerMiddleware` in `buildApp.ts`, with registrar functions placed under `./src/middlewares/`.
 - Plugins are registered inside the `buildApp` function under `buildApp.ts`, using `AppFactory.registerPlugins`.
 - Plugins execute **sequentially** in registration order. Order matters when one plugin depends on another.
 - Plugins run **before** `registerMiddleware` and `registerModules`.
