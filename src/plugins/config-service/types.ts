@@ -1,5 +1,5 @@
 import type { EnvironmentValues } from '@src/common/constants';
-import type { LoggerSettings } from '@src/lib/logger';
+import type { LoggerSettings, LogLevelValues } from '@src/lib/logger';
 import type { ServiceNameValues } from './logic/constants';
 
 export type AuthCookieConfig = {
@@ -45,7 +45,16 @@ export type ValidEnv = {
   IS_DEV: boolean;
   IS_CI: boolean;
   DOMAIN: string;
-  LOG_LEVEL: string;
+  LOG_LEVEL: LogLevelValues;
+  /**
+   * Whether to use colored output in the logs.
+   * @default false
+   */
+  USE_COLORS: boolean;
+  /**
+   * Used to identify the service in the logs.
+   */
+  SERVICE_NAME: string;
   NODE_ENV: string | undefined;
   POSTGRES_CONNECTION_STRING: string;
   REDIS_CONNECTION_STRING: string;

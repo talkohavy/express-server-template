@@ -1,5 +1,5 @@
 import { LoggerService } from '@src/core/services/logger';
-import { Logger, LogLevel, type LoggerSettings } from '@src/lib/logger';
+import { Logger, type LoggerSettings } from '@src/lib/logger';
 import { ConfigKeys } from './config-service';
 import type { Application } from 'express';
 import type { CallContextService } from '@src/core/services/call-context';
@@ -22,12 +22,12 @@ export function loggerPlugin(app: Application) {
 
 function initLoggerService(logSettings: LoggerServiceSettings, callContextService: CallContextService): LoggerService {
   const settings: LoggerSettings = {
-    logLevel: logSettings.logLevel || LogLevel.Debug,
-    useColoredOutput: logSettings.useColoredOutput ?? true,
+    logLevel: logSettings.logLevel,
+    useColoredOutput: logSettings.useColoredOutput,
   };
 
-  const fixedKeys: Record<string, any> = {
-    serviceName: logSettings.serviceName || 'my-service',
+  const fixedKeys = {
+    serviceName: logSettings.serviceName,
     environment: logSettings.logEnvironment,
   };
 

@@ -16,7 +16,7 @@ export const envSchema = Joi.object<ValidEnv>({
   }),
   LOG_LEVEL: Joi.string()
     .valid(...logLevelValues)
-    .default(LogLevel.Debug)
+    .default(LogLevel.Info)
     .messages({
       'any.only': `"LOG_LEVEL" must be one of [${logLevelValues.join(', ')}]`,
     }),

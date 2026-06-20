@@ -1,6 +1,5 @@
 import { Environment } from '@src/common/constants';
 import { validateEnvVariables } from './utils/validateEnvVariables';
-import type { LogLevelValues } from '@src/lib/logger';
 import type { Config } from './constants';
 
 export function configuration(): Config {
@@ -33,10 +32,10 @@ export function configuration(): Config {
       },
     },
     logSettings: {
-      serviceName: 'my-nest-like-server',
-      logLevel: env.LOG_LEVEL as LogLevelValues,
+      serviceName: env.SERVICE_NAME ?? 'my-nest-like-server',
+      logLevel: env.LOG_LEVEL,
       logEnvironment: Environment.Dev,
-      useColoredOutput: env.NODE_ENV !== 'production',
+      useColoredOutput: env.USE_COLORS,
     },
     postgres: {
       connectionString: env.POSTGRES_CONNECTION_STRING,
