@@ -13,6 +13,7 @@ import { AttachPongHandlerToSocketPipeline } from './services/ws-connection-pipe
 import { AttachSocketIdToConnectionPipeline } from './services/ws-connection-pipeline/pipeline/attach-socket-id-to-connection.pipeline';
 import { ConnectionAcknowledgePipeline } from './services/ws-connection-pipeline/pipeline/connection-acknowledge.pipeline';
 import { SubscribeSocketToRootTopicPipeline } from './services/ws-connection-pipeline/pipeline/subscribe-socket-to-root-topic.pipeline';
+import { ValidateConnectionUrlPipeline } from './services/ws-connection-pipeline/pipeline/validate-connection-url.pipeline';
 import type { Application } from 'express';
 import type { TopicPayload } from '@src/common/types';
 import type { ModuleFactory } from '@src/lib/lucky-server';
@@ -89,6 +90,7 @@ export class WsModule implements ModuleFactory {
     const wsConnectionPipelineService = new WsConnectionPipelineService(wsApp);
 
     wsConnectionPipelineService.register([
+      new ValidateConnectionUrlPipeline(),
       new AttachSocketIdToConnectionPipeline(),
       new SubscribeSocketToRootTopicPipeline(topicSubscriber, logger),
       new AttachCloseHandlerToSocketPipeline(topicSubscriber, logger),
