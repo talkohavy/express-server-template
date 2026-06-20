@@ -1,4 +1,4 @@
-import { colorMyJson } from 'color-my-json';
+import { colorMyJson, COLORS } from 'color-my-json';
 import { LogLevel, LogLevelToNumber, type LogLevelValues } from './logic/constants';
 import { createEnumerableError } from './logic/utils/createEnumerableError';
 import type { ILogger, LoggerConstructorProps } from './logger.interface';
@@ -30,7 +30,7 @@ export class Logger implements ILogger {
 
     const logMetadata = this.enrichLogMetadata(message, data, LogLevel.Debug);
 
-    this.logMe(logMetadata);
+    this.logMe(logMetadata, LogLevel.Debug);
   }
 
   log(message: string, data?: any) {
@@ -38,7 +38,7 @@ export class Logger implements ILogger {
 
     const logMetadata = this.enrichLogMetadata(message, data, LogLevel.Info);
 
-    this.logMe(logMetadata);
+    this.logMe(logMetadata, LogLevel.Info);
   }
 
   info(message: string, data?: any) {
@@ -46,7 +46,7 @@ export class Logger implements ILogger {
 
     const logMetadata = this.enrichLogMetadata(message, data, LogLevel.Info);
 
-    this.logMe(logMetadata);
+    this.logMe(logMetadata, LogLevel.Info);
   }
 
   warn(message: string, data?: any) {
@@ -54,7 +54,7 @@ export class Logger implements ILogger {
 
     const logMetadata = this.enrichLogMetadata(message, data, LogLevel.Warn);
 
-    this.logMe(logMetadata);
+    this.logMe(logMetadata, LogLevel.Warn);
   }
 
   error(message: string, data?: any) {
@@ -62,7 +62,7 @@ export class Logger implements ILogger {
 
     const logMetadata = this.enrichLogMetadata(message, data, LogLevel.Error);
 
-    this.logMe(logMetadata);
+    this.logMe(logMetadata, LogLevel.Error);
   }
 
   fatal(message: string, data?: any) {
@@ -70,20 +70,27 @@ export class Logger implements ILogger {
 
     const logMetadata = this.enrichLogMetadata(message, data, LogLevel.Fatal);
 
-    this.logMe(logMetadata);
+    this.logMe(logMetadata, LogLevel.Fatal);
   }
 
-  private logMe(logMetadata: string): void {
+  private logMe(logMetadata: string, level: LogLevelValues): void {
     if (this.settings.useColoredOutput) {
-      this.logFormattedOutput(logMetadata);
+      this.logFormattedOutput(logMetadata, level);
     } else {
       this.logRawOutput(logMetadata);
     }
   }
 
-  private logFormattedOutput(logMetadata: string): void {
+  private logFormattedOutput(logMetadata: string, level: LogLevelValues): void {
     console.log('');
-    console.log(colorMyJson(logMetadata));
+
+    const isErrorLevel = level === LogLevel.Error || level === LogLevel.Fatal;
+
+    if (isErrorLevel) {
+      console.log(`${COLORS.red}${logMetadata}${COLORS.stop}`);
+    } else {
+      console.log(colorMyJson(logMetadata));
+    }
   }
 
   private logRawOutput(logMetadata: string): void {
