@@ -1,4 +1,3 @@
-import { WebSocket as WS } from 'ws';
 import { parseJson } from '@src/common/utils/parseJson';
 import { DEFAULT_TOPIC_KEY_TTL_SECONDS } from './logic/constants';
 import {
@@ -301,7 +300,7 @@ export class TopicSubscriberService {
     const topicSubscribers = await this.getTopicSubscribers(topic);
 
     for (const socket of topicSubscribers) {
-      if (socket.readyState !== WS.OPEN) continue;
+      if (socket.readyState !== socket.OPEN) continue;
 
       const interceptor = this.topicInterceptors[topic];
 
