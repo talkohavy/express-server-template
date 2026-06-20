@@ -28,7 +28,7 @@ function initLoggerService(logSettings: LoggerServiceSettings, callContextServic
 
   const fixedKeys = {
     serviceName: logSettings.serviceName,
-    environment: logSettings.logEnvironment,
+    environment: logSettings.logEnv,
   };
 
   const logger = new Logger({ settings, fixedKeys });

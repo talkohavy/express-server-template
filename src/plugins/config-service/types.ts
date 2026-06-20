@@ -11,6 +11,9 @@ export type AuthCookieConfig = {
 
 type SingleCookie = {
   name: string;
+  /**
+   * @default 'localhost'
+   */
   domain: string;
   maxAge: number;
 };
@@ -29,8 +32,18 @@ export type JwtConfig = {
 };
 
 export type LoggerServiceSettings = LoggerSettings & {
+  /**
+   * Used to identify the service in the logs.
+   * @default 'my-nest-like-server'
+   */
   serviceName?: string;
-  logEnvironment?: EnvironmentValues;
+  /**
+   * Used for filtering logs by environment.
+   *
+   * Examples: 'dev', 'qa', 'prod', 'stg', etc.
+   * @default 'dev'
+   */
+  logEnv?: EnvironmentValues;
 };
 
 export type PostgresConfig = {
@@ -48,9 +61,17 @@ export type ValidEnv = {
    * The domain to use for the cookies.
    *
    * i.e. '.luckylove.co.il'
+   * @default 'localhost'
    */
   DOMAIN: string;
   LOG_LEVEL: LogLevelValues;
+  /**
+   * Used for filtering logs by environment.
+   *
+   * Examples: 'dev', 'qa', 'prod', 'stg', etc.
+   * @default 'dev'
+   */
+  LOG_ENV: EnvironmentValues;
   /**
    * Whether to use colored output in the logs.
    * @default false
@@ -58,6 +79,7 @@ export type ValidEnv = {
   USE_COLORS: boolean;
   /**
    * Used to identify the service in the logs.
+   * @default 'my-nest-like-server'
    */
   SERVICE_NAME: string;
   NODE_ENV: string | undefined;

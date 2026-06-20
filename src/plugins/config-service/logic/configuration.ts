@@ -1,4 +1,3 @@
-import { Environment } from '@src/common/constants';
 import { validateEnvVariables } from './utils/validateEnvVariables';
 import type { Config } from './constants';
 
@@ -32,9 +31,9 @@ export function configuration(): Config {
       },
     },
     logSettings: {
-      serviceName: env.SERVICE_NAME ?? 'my-nest-like-server',
+      serviceName: env.SERVICE_NAME,
       logLevel: env.LOG_LEVEL,
-      logEnvironment: Environment.Dev,
+      logEnv: env.LOG_ENV,
       useColoredOutput: env.USE_COLORS,
     },
     postgres: {

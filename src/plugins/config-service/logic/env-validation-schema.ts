@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { Environment } from '@src/common/constants';
 import { LogLevel } from '@src/lib/logger';
 import type { ValidEnv } from '../types';
 
@@ -20,6 +21,10 @@ export const envSchema = Joi.object<ValidEnv>({
     .messages({
       'any.only': `"LOG_LEVEL" must be one of [${logLevelValues.join(', ')}]`,
     }),
+  LOG_ENV: Joi.string()
+    .valid(...Object.values(Environment))
+    .default(Environment.Dev),
+  SERVICE_NAME: Joi.string().default('my-nest-like-server'),
   SHOULD_MIGRATE_POSTGRES: Joi.boolean().default(false),
   WEBSOCKET_MODULE: Joi.string().valid('socket.io', 'ws').optional(),
   IS_DEV: Joi.boolean().default(false),
