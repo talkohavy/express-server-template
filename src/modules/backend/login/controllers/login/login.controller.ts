@@ -48,13 +48,13 @@ export class LoginController implements ControllerFactory {
 
         // Step 4: Set cookies
         const { cookies, isDev } = this.app.configService.get<Config>('');
-        const { name: accessTokenCookieName, maxAge } = cookies.accessCookie;
+        const { name: accessTokenCookieName, maxAge, domain } = cookies.accessCookie;
         const { name: refreshTokenCookieName } = cookies.refreshCookie;
 
         const options: CookieOptions = {
           secure: !isDev,
           httpOnly: true,
-          domain: isDev ? undefined : '.luckylove.co.il',
+          domain: isDev ? undefined : domain,
           path: '/',
           maxAge,
           sameSite: 'strict',

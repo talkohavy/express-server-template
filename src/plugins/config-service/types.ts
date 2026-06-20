@@ -44,6 +44,11 @@ export type ValidEnv = {
   MICRO_SERVICES_PROTOCOL: 'direct' | 'http' | 'grpc';
   IS_DEV: boolean;
   IS_CI: boolean;
+  /**
+   * The domain to use for the cookies.
+   *
+   * i.e. '.luckylove.co.il'
+   */
   DOMAIN: string;
   LOG_LEVEL: LogLevelValues;
   /**
