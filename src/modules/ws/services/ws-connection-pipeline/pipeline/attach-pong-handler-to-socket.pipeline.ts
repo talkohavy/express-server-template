@@ -5,7 +5,7 @@ import type { PingPongService } from '../../ping-pong';
 export class AttachPongHandlerToSocketPipeline implements IConnectionPipeline {
   constructor(private readonly pingPongService: PingPongService) {}
 
-  handleConnection(props: WsConnectionContext) {
+  handleConnection(props: WsConnectionContext, next: () => void): void {
     const { socket } = props;
 
     socket.on(BUILT_IN_WEBSOCKET_EVENTS.Pong, () => {
@@ -13,5 +13,7 @@ export class AttachPongHandlerToSocketPipeline implements IConnectionPipeline {
     });
 
     this.pingPongService.registerSocketToPingPong(socket);
+
+    next();
   }
 }

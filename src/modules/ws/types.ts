@@ -10,10 +10,11 @@ export type WsConnectionContext = {
 };
 
 /**
- * One step in the connection pipeline; each step completes before the next runs.
+ * One step in the connection pipeline. Call `next()` to proceed to the next step;
+ * omit the call to stop the chain (e.g. on validation failure).
  */
 export interface IConnectionPipeline {
-  handleConnection(props: WsConnectionContext): Promise<void> | void;
+  handleConnection(props: WsConnectionContext, next: () => void): Promise<void> | void;
 }
 
 export type ActionHandler = (...args: any) => Promise<void>;

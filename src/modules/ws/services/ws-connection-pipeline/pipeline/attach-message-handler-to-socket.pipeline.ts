@@ -5,11 +5,13 @@ import type { MessageDispatcherByEventService } from '../../message-dispatcher-b
 export class AttachMessageHandlerToSocketPipeline implements IConnectionPipeline {
   constructor(private readonly messageDispatcherByEventService: MessageDispatcherByEventService) {}
 
-  handleConnection(props: WsConnectionContext) {
+  handleConnection(props: WsConnectionContext, next: () => void): void {
     const { socket } = props;
 
     socket.on(BUILT_IN_WEBSOCKET_EVENTS.Message, (data: Buffer) => {
       this.messageDispatcherByEventService.dispatchMessage(socket, data);
     });
+
+    next();
   }
 }

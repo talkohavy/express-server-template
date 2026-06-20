@@ -9,17 +9,17 @@ export class SubscribeSocketToRootTopicPipeline implements IConnectionPipeline {
     private readonly logger: LoggerService,
   ) {}
 
-  async handleConnection(props: WsConnectionContext) {
+  async handleConnection(props: WsConnectionContext, next: () => void): Promise<void> {
     const { socket } = props;
 
     const isSuccess = await this.topicSubscriber.subscribe(socket, StaticTopics.Presence);
 
-    if (!isSuccess) {
+    if (isSuccess) {
+      this.logger.debug('Socket subscribed to presence', { socketId: socket.id });
+    } else {
       this.logger.debug('Socket already in presence topic on connect', { socketId: socket.id });
-
-      return;
     }
 
-    this.logger.debug('Socket subscribed to presence', { socketId: socket.id });
+    next();
   }
 }

@@ -9,10 +9,12 @@ export class AttachCloseHandlerToSocketPipeline implements IConnectionPipeline {
     private readonly logger: LoggerService,
   ) {}
 
-  async handleConnection(props: WsConnectionContext): Promise<void> {
+  handleConnection(props: WsConnectionContext, next: () => void): void {
     const { socket } = props;
 
     this.attachCloseHandlerToSocket(socket);
+
+    next();
   }
 
   private attachCloseHandlerToSocket(socket: WebSocket): void {
