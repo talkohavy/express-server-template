@@ -16,6 +16,6 @@ export interface IConnectionPipeline {
   handleConnection(props: WsConnectionContext): Promise<void> | void;
 }
 
-export type ActionHandler = (socket: WebSocket, payload: any) => Promise<void>;
+export type ActionHandler = (...args: any) => Promise<void>;
 
-export type WsMiddleware = (socket: WebSocket, payload: any, next: () => void) => Promise<void> | void;
+export type WsMiddleware = (...args: any) => Promise<void> | void;

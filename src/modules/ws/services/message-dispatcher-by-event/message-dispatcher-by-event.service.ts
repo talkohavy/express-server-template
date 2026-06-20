@@ -1,10 +1,11 @@
+import { createPipeline } from '@src/common/utils/createPipeline';
 import { parseJson } from '@src/common/utils/parseJson';
 import { ResponseTypes, type SocketEventValues } from '../../logic/constants';
 import { sendResponse } from '../../logic/utils/sendResponse';
 import type { WebSocket } from 'ws';
 import type { ClientMessage } from '@src/common/types';
 import type { LoggerService } from '@src/core/services/logger';
-import type { ActionHandler, WsMiddleware } from '../../types';
+import type { ActionHandler } from '../../types';
 import type { RegisterProps } from './types';
 
 /**
@@ -19,7 +20,7 @@ export class MessageDispatcherByEventService {
   register(props: RegisterProps): void {
     const { event, handler, middlewares = [] } = props;
 
-    const composedHandler = this.composeHandler(middlewares, handler);
+    const composedHandler = middlewares.length > 0 ? createPipeline([...middlewares, handler]) : handler;
 
     this.handlersByEvent[event] = composedHandler;
   }
@@ -57,29 +58,5 @@ export class MessageDispatcherByEventService {
 
   private isValidClientMessage(message: any): message is ClientMessage {
     return Boolean(message) && typeof message.event === 'string';
-  }
-
-  private composeHandler(middlewares: WsMiddleware[], handler: ActionHandler): ActionHandler {
-    let composedHandler: ActionHandler = handler;
-
-    for (let i = middlewares.length - 1; i >= 0; i--) {
-      const middleware = middlewares[i]!;
-
-      const next = composedHandler;
-
-      composedHandler = async (socket, payload) => {
-        let nextPromise: Promise<void> | undefined;
-
-        await middleware(socket, payload, () => {
-          nextPromise = next(socket, payload);
-        });
-
-        if (nextPromise !== undefined) {
-          await nextPromise;
-        }
-      };
-    }
-
-    return composedHandler;
   }
 }
