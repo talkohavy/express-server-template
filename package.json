@@ -25,6 +25,7 @@
     "format:biome": "biome format ./src",
     "format:biome:fix": "biome format --verbose ./src --write",
     "test": "jest",
+    "test:cov": "jest --coverage",
     "check": "npm run lint && npm run format:biome && npm run tsc && npm run test",
     "benchmark": "node --env-file=.env --import tsx benchmark/benchmark.ts",
     "benchmark:quick": "concurrently -k -s first \"node --env-file=.env --import tsx src/initServer.ts\" \"npx autocannon -c 100 -d 5 -p 10 http://localhost:8000/api/health-check\"",

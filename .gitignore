@@ -11,5 +11,6 @@ jsconfig.tsbuildinfo
 **/*.swagger.json
 
 # Generated proto output (run pnpm run generate:proto to regenerate)
+coverage/
 **/proto/generated
 .pnpm-store
