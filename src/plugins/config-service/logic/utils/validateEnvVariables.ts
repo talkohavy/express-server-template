@@ -14,8 +14,8 @@ export function validateEnvVariables(): ValidEnv {
       })
       .join('\n');
 
-    console.log('❌ Environment variable validation failed:');
-    console.error(`${Colors.Red}${messages}${Colors.Reset}`);
+    console.log(`${Colors.Yellow}❌ Environment variable validation failed:${Colors.Reset}`);
+    console.log(`${Colors.Red}${messages}${Colors.Reset}`);
 
     process.exit(1);
   } else {
