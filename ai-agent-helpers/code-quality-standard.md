@@ -1,27 +1,6 @@
-# AI Coding Rules
+# 1. Code Quality Standards
 
-This file contains shared coding rules and guidelines for AI coding assistants (Claude Code, Cursor, etc.) when working with this repository.
-
-All detailed feature-specific documentation can be found in the `ai-agent-helpers/guides/` folder.
-
-## 1. Documentation Structure
-
-The project has comprehensive documentation organized as follows:
-
-- **ai-agent-helpers/guides/** - Directory containing detailed feature-specific guides:
-  - `APP_FACTORY.md` - The class used for attaching plugins, global middleware, and modules.
-  - `INIT_SERVER_AND_APP.md` - The 2 main files (initServer.ts & buildApp.ts) that should exist in every server.
-  - `MODULES.md` - Explains the module system of the project.
-  - `PERMISSIONS_RBAC.md` - RBAC permission system: guards, config, and extending for new modules.
-  - `PLUGINS.md` - Explains plugins (core services on `app`) vs global middleware (`registerMiddleware`).
-
-**Start with the README.md for project overview, then refer to specific guides under ai-agent-helpers/guides/ for detailed information on each feature.**
-
----
-
-## 2. Code Quality Standards
-
-### A. TypeScript
+## A. TypeScript
 
 - Avoid `interface` keyword and prefer using `type` for types
 - Prefer async/await syntax over .then()/.catch()
@@ -34,7 +13,7 @@ The project has comprehensive documentation organized as follows:
 - Avoid returning the output of a function directly as the input to another function. Always store the output in a variable first before passing it to another function.
 - Never return a promise. Always store the awaited result in a variable and then return that variable.
 
-### B. Testing Best Practices
+## B. Testing Best Practices
 
 - **Always write unit tests for new code**. Use the existing test files as a reference.
 - **After updating any logic**, check whether existing unit tests need to be updated. If so, update them accordingly.
@@ -45,19 +24,19 @@ The project has comprehensive documentation organized as follows:
 - Keep tests independent and isolated
 - Add proper wait strategies (avoid hard-coded delays)
 
-### C. Code Formatting
+## C. Code Formatting
 
 - Run `pnpm run format:biome:fix` to fix formatting issues
 - Run `pnpm run lint:fix` to fix linting issues
 - Run `pnpm run build` to verify the build process works
 
-### D. Imports
+## D. Imports
 
 - Generally, use relative imports.
 - Absolute imports are supported by prefixing with `@src/`.
 - Use absolute imports when importing from one of the following: `src/common` | `src/lib`.
 - **Use clear consistent imports** (prefer relative imports and avoid circular dependencies).
 
-### E. Re-use logic
+## E. Re-use logic
 
 - Alway look for existing utility functions inside `src/common/utils` before creating them from scratch.
