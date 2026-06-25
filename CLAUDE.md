@@ -16,9 +16,22 @@ Project knowledge base is found in all the md files under:
 
 ## 3. What this project is
 
+Defined clearly under the `README.md` file at the root of the project.
+
+## 4. How to run project locally
+
+Make sure redis server runs locally.
+Make sure postgress server runs locally.
+
+Just run:
+
+```bash
+pnpm dev
+```
+
 A TypeScript + Express backend **template** (package manager: `pnpm`), inspired by combining ideas from Nest.js and Fastify: dependency injection, class-based components, plugins, and modules. It can run as a **monolith** or as standalone **micro-services**.
 
-## 4. Commands
+## 5. Commands
 
 ```bash
 pnpm dev                  # run the monolith (watch mode) -> src/initServer.ts
