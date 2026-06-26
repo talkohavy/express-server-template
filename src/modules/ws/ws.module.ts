@@ -1,3 +1,5 @@
+import { ConfigKeys, type JwtConfig } from '../../plugins/config-service';
+import { TokenVerificationService } from '../authentication/services/token-verification';
 import { PublishToTopicController } from './controllers/publish-to-topic';
 import { TopicRegistrationController } from './controllers/topic-registration';
 import { WebRtcSignalingController } from './controllers/webrtc-signaling';
@@ -11,6 +13,7 @@ import { AttachErrorHandlerToSocketPipeline } from './services/ws-connection-pip
 import { AttachMessageHandlerToSocketPipeline } from './services/ws-connection-pipeline/pipeline/attach-message-handler-to-socket.pipeline';
 import { AttachPongHandlerToSocketPipeline } from './services/ws-connection-pipeline/pipeline/attach-pong-handler-to-socket.pipeline';
 import { AttachSocketIdToConnectionPipeline } from './services/ws-connection-pipeline/pipeline/attach-socket-id-to-connection.pipeline';
+import { AuthenticateUserPipeline } from './services/ws-connection-pipeline/pipeline/authenticate-user.pipeline';
 import { ConnectionAcknowledgePipeline } from './services/ws-connection-pipeline/pipeline/connection-acknowledge.pipeline';
 import { SubscribeSocketToRootTopicPipeline } from './services/ws-connection-pipeline/pipeline/subscribe-socket-to-root-topic.pipeline';
 import { ValidateConnectionUrlPipeline } from './services/ws-connection-pipeline/pipeline/validate-connection-url.pipeline';
@@ -87,10 +90,15 @@ export class WsModule implements ModuleFactory {
   private attachConnectionPipeline(): void {
     const { wsApp, logger, topicSubscriber, topicPublisher } = this.app;
 
+    const tokenVerificationService = new TokenVerificationService(
+      this.app.configService.get<JwtConfig>(ConfigKeys.Jwt),
+    );
+
     const wsConnectionPipelineService = new WsConnectionPipelineService(wsApp);
 
     wsConnectionPipelineService.register([
       new ValidateConnectionUrlPipeline(),
+      new AuthenticateUserPipeline(tokenVerificationService),
       new AttachSocketIdToConnectionPipeline(),
       new SubscribeSocketToRootTopicPipeline(topicSubscriber, logger),
       new AttachCloseHandlerToSocketPipeline(topicSubscriber, logger),
