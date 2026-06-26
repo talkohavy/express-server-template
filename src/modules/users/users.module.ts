@@ -1,4 +1,4 @@
-import { nonSensitiveFields, sensitiveFields } from '../../databases/mongo/models/user/user.schema.template';
+import { nonSensitiveFields, sensitiveFields } from '../../databases/postgres/models/user';
 import { UserUtilitiesController } from './controllers/user-utilities';
 import { UsersCrudController } from './controllers/users-crud';
 import { AttachUserFromHeadersMiddleware } from './middleware/attach-user-from-headers.middleware';
@@ -10,6 +10,7 @@ import { UsersCacheMetricsService } from './services/users-cache-metrics';
 import { UsersCrudService } from './services/users-crud';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
+// import { nonSensitiveFields, sensitiveFields } from '../../databases/mongo/models/user/user.schema.template';
 // import { UsersMongoRepository } from './repositories/users';
 
 export class UsersModule implements ModuleFactory {
