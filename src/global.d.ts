@@ -20,6 +20,9 @@ declare module 'express' {
 declare module 'ws' {
   export interface WebSocket extends WebSocketType {
     id: string;
+    data: {
+      user: UserToken;
+    };
   }
 }
 
