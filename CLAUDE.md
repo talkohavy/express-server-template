@@ -16,7 +16,7 @@ Project knowledge base is found in all the md files under:
 
 ## 3. What this project is
 
-Defined clearly under the `README.md` file at the root of the project.
+A TypeScript + Express backend **template** (package manager: `pnpm`), inspired by combining ideas from Nest.js and Fastify: dependency injection, class-based components, plugins, and modules. It can run as a **monolith** or as standalone **micro-services**.
 
 ## 4. How to run project locally
 
@@ -28,8 +28,6 @@ Just run:
 ```bash
 pnpm dev
 ```
-
-A TypeScript + Express backend **template** (package manager: `pnpm`), inspired by combining ideas from Nest.js and Fastify: dependency injection, class-based components, plugins, and modules. It can run as a **monolith** or as standalone **micro-services**.
 
 ## 5. Commands
 
