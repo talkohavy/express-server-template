@@ -6,7 +6,7 @@ Guidance for Claude Code (and other AI agents) when working in this repository.
 
 Code quality standard are found under:
 
-`ai-agent-helpers/code-quality-standard.md`
+`ai-agent-helpers/code-quality-standards.md`
 
 ## 2. Project Knowledge Base
 
