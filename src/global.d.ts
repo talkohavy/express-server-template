@@ -1,5 +1,6 @@
 import type { WebSocket as WebSocketType } from 'ws';
 import type { OptimizedApp, UserToken } from './common/types';
+import type { SocketData } from './common/types/socket-data';
 
 declare module 'express' {
   export interface Request {
@@ -20,9 +21,7 @@ declare module 'express' {
 declare module 'ws' {
   export interface WebSocket extends WebSocketType {
     id: string;
-    data: {
-      user: UserToken;
-    };
+    data: SocketData;
   }
 }
 

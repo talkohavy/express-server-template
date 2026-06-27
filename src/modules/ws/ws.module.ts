@@ -9,10 +9,11 @@ import { MessageDispatcherByEventService } from './services/message-dispatcher-b
 import { PingPongService } from './services/ping-pong';
 import { WsConnectionPipelineService } from './services/ws-connection-pipeline';
 import { AttachCloseHandlerToSocketPipeline } from './services/ws-connection-pipeline/pipeline/attach-close-handler-to-socket.pipeline';
+import { AttachDataToSocketPipeline } from './services/ws-connection-pipeline/pipeline/attach-data-to-socket.pipeline';
 import { AttachErrorHandlerToSocketPipeline } from './services/ws-connection-pipeline/pipeline/attach-error-handler-to-socket.pipeline';
+import { AttachIdToSocketPipeline } from './services/ws-connection-pipeline/pipeline/attach-id-to-socket.pipeline';
 import { AttachMessageHandlerToSocketPipeline } from './services/ws-connection-pipeline/pipeline/attach-message-handler-to-socket.pipeline';
 import { AttachPongHandlerToSocketPipeline } from './services/ws-connection-pipeline/pipeline/attach-pong-handler-to-socket.pipeline';
-import { AttachSocketIdToConnectionPipeline } from './services/ws-connection-pipeline/pipeline/attach-socket-id-to-connection.pipeline';
 import { AuthenticateUserPipeline } from './services/ws-connection-pipeline/pipeline/authenticate-user.pipeline';
 import { ConnectionAcknowledgePipeline } from './services/ws-connection-pipeline/pipeline/connection-acknowledge.pipeline';
 import { SubscribeSocketToRootTopicPipeline } from './services/ws-connection-pipeline/pipeline/subscribe-socket-to-root-topic.pipeline';
@@ -97,9 +98,10 @@ export class WsModule implements ModuleFactory {
     const wsConnectionPipelineService = new WsConnectionPipelineService(wsApp);
 
     wsConnectionPipelineService.register([
+      new AttachIdToSocketPipeline(),
+      new AttachDataToSocketPipeline(),
       new ValidateConnectionUrlPipeline(),
       new AuthenticateUserPipeline(tokenVerificationService),
-      new AttachSocketIdToConnectionPipeline(),
       new SubscribeSocketToRootTopicPipeline(topicSubscriber, logger),
       new AttachCloseHandlerToSocketPipeline(topicSubscriber, logger),
       new AttachErrorHandlerToSocketPipeline(logger),
