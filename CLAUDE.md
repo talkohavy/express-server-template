@@ -4,15 +4,15 @@ Guidance for Claude Code (and other AI agents) when working in this repository.
 
 ## 1. Code Quality Standards
 
-Code quality standard are found under:
+Before making any code changes (edits, new files, or refactors), read ai-agent-docs/code-quality-standards.md.
 
-`ai-agent-helpers/code-quality-standards.md`
+`ai-agent-docs/code-quality-standards.md`
 
 ## 2. Project Knowledge Base
 
 Project knowledge base is found in all the md files under:
 
-`ai-agent-helpers/knowledge/`
+`ai-agent-docs/knowledge/`
 
 ## 3. What this project is
 

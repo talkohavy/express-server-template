@@ -20,7 +20,7 @@ It was built upon an original idea to combine the best out of Nest.js, Fastify, 
 
 ```
 express-server-typescript-template/
-├── ai-agent-helpers/         # All AI agent oriented guides
+├── ai-agent-docs/         # All AI agent oriented guides
 │   ├── guides/               # Practical guides
 │   │   ├── APP_FACTORY.md
 │   │   ├── INIT_SERVER_AND_APP.md
@@ -102,7 +102,7 @@ It includes:
 
 - A repository level (database connection)
 - Multiple services (i.e. `users-crud.service.ts`, `user-utilities.service.ts`, etc.)
-- **RBAC permissions** – Routes are protected with `requirePermissionMiddleware` using permission constants (`Permissions.users.create`, `Permissions.users.read`, etc.). `registerFetchPermissionsMiddleware` populates `req.userPermissions` per request, and `attachUserFromHeadersMiddleware` populates `req.user` from `X-User-Id` / `X-User-Role` headers. See `ai-agent-helpers/guides/PERMISSIONS_RBAC.md` for details.
+- **RBAC permissions** – Routes are protected with `requirePermissionMiddleware` using permission constants (`Permissions.users.create`, `Permissions.users.read`, etc.). `registerFetchPermissionsMiddleware` populates `req.userPermissions` per request, and `attachUserFromHeadersMiddleware` populates `req.user` from `X-User-Id` / `X-User-Role` headers. See `ai-agent-docs/guides/PERMISSIONS_RBAC.md` for details.
 - A field-screening service
 
 The database/repository layer used here is either `postgres` or `mongodb`. In such a module we create an extra folder called `repositories` where we declare a repository class (`UsersRepository` for example), and define db operations there.

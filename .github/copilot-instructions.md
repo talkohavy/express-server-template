@@ -6,7 +6,7 @@ alwaysApply: true
 
 **All coding rules, guidelines, and project information are maintained in a single shared file:**
 
-👉 **See ai-agent-helpers/AI_CODING_RULES.md for complete project guidelines**
+👉 **See ai-agent-docs/AI_CODING_RULES.md for complete project guidelines**
 
 This includes:
 
