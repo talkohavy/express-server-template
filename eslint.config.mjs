@@ -44,6 +44,7 @@ export default [
 
       // Error Rules
       'no-throw-literal': 'error',
+      'import/newline-after-import': ['error', { count: 1 }],
       'import/no-duplicates': ['error', { 'prefer-inline': false }], // <--- Use only this rule! Do NOT use the 'no-duplicate-imports' rule, as it doesn't know how to auto-fix.
       'perfectionist/sort-imports': [
         'error',
