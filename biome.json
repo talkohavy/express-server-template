@@ -1,99 +1,98 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.5.2/schema.json",
-	"vcs": {
-		"enabled": true,
-		"clientKind": "git",
-		"useIgnoreFile": true
-	},
-	"files": {
-		"includes": ["**", "!**/dist", "!**/node_modules", "!**/proto/generated"],
-		"ignoreUnknown": false
-	},
-	"assist": {
-		"enabled": true,
-		"actions": {
-			"source": {
-				"organizeImports": "off"
-			}
-		}
-	},
-	"linter": {
-		"enabled": true,
-		"rules": {
-			"preset": "recommended",
-			"suspicious": {
-				"noExplicitAny": "off",
-				"noGlobalIsNan": "off",
-				"noAssignInExpressions": "off",
-				"noArrayIndexKey": "off",
-				"noDebugger": "off",
-				"noDoubleEquals": "off",
-				"noFocusedTests": "off",
-				"noThenProperty": "off",
-				"useIterableCallbackReturn": "off"
-			},
-			"correctness": {
-				"useExhaustiveDependencies": "off",
-				"noUnusedImports": "off",
-				"noUnusedVariables": "off",
-				"noInnerDeclarations": "off",
-				"noVoidTypeReturn": "off",
-				"noUnusedPrivateClassMembers": "off"
-			},
-			"complexity": {
-				"noForEach": "off",
-				"noUselessThisAlias": "off",
-				"noUselessConstructor": "off",
-				"noStaticOnlyClass": "off"
-			},
-			"performance": {
-				"noDelete": "off"
-			},
-			"security": {
-				"noDangerouslySetInnerHtml": "off"
-			},
-			"style": {
-				"useSingleVarDeclarator": "off",
-				"noParameterAssign": "off",
-				"noNonNullAssertion": "off",
-				"useSelfClosingElements": "off",
-				"useNodejsImportProtocol": "off",
-				"useAsConstAssertion": "error",
-				"useDefaultParameterLast": "error",
-				"useEnumInitializers": "error",
-				"noUnusedTemplateLiteral": "error",
-				"useNumberNamespace": "error",
-				"noInferrableTypes": "error",
-				"noUselessElse": "error"
-			}
-		}
-	},
-	"formatter": {
-		"enabled": true,
-		"formatWithErrors": true,
-		"indentWidth": 2,
-		"indentStyle": "space",
-		"lineEnding": "lf",
-		"lineWidth": 120
-	},
-	
-	"javascript": {
-		"parser": {
-			"unsafeParameterDecoratorsEnabled": true
-		},
-		"formatter": {
-			"arrowParentheses": "always",
-			"bracketSameLine": false,
-			"bracketSpacing": true,
-			"jsxQuoteStyle": "single",
-			"quoteProperties": "asNeeded",
-			"quoteStyle": "single",
-			"semicolons": "always"
-		}
-	},
-	"json": {
-		"parser": { "allowComments": true, "allowTrailingCommas": true },
-		"formatter": { "enabled": false }
-	},
-	
+  "$schema": "https://biomejs.dev/schemas/2.5.2/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!**/dist", "!**/node_modules", "!**/proto/generated"],
+    "ignoreUnknown": false
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noGlobalIsNan": "off",
+        "noAssignInExpressions": "off",
+        "noArrayIndexKey": "off",
+        "noDebugger": "off",
+        "noDoubleEquals": "off",
+        "noFocusedTests": "off",
+        "noThenProperty": "off",
+        "useIterableCallbackReturn": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off",
+        "noUnusedImports": "off",
+        "noUnusedVariables": "off",
+        "noInnerDeclarations": "off",
+        "noVoidTypeReturn": "off",
+        "noUnusedPrivateClassMembers": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "noUselessThisAlias": "off",
+        "noUselessConstructor": "off",
+        "noStaticOnlyClass": "off"
+      },
+      "performance": {
+        "noDelete": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
+      "style": {
+        "useSingleVarDeclarator": "off",
+        "noParameterAssign": "off",
+        "noNonNullAssertion": "off",
+        "useSelfClosingElements": "off",
+        "useNodejsImportProtocol": "off",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": true,
+    "indentWidth": 2,
+    "indentStyle": "space",
+    "lineEnding": "lf",
+    "lineWidth": 120
+  },
+
+  "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    },
+    "formatter": {
+      "arrowParentheses": "always",
+      "bracketSameLine": false,
+      "bracketSpacing": true,
+      "jsxQuoteStyle": "single",
+      "quoteProperties": "asNeeded",
+      "quoteStyle": "single",
+      "semicolons": "always"
+    }
+  },
+  "json": {
+    "parser": { "allowComments": true, "allowTrailingCommas": true },
+    "formatter": { "enabled": false }
+  }
 }
