@@ -34,6 +34,14 @@ export class UsersBloomFilterService {
   }
 
   /**
+   * Drops the filter and recreates it empty.
+   */
+  async reset(): Promise<void> {
+    await this.redis.del(USERS_BLOOM_FILTER_KEY);
+    await this.initialize();
+  }
+
+  /**
    * Returns false if the ID is definitely not in the DB.
    * Returns true if the ID is possibly in the DB (proceed to cache/DB).
    */
