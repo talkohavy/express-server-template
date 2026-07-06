@@ -20,5 +20,22 @@ export async function metricsPlugin(app: Application) {
     registers: [registry],
   });
 
-  app.metrics = { registry, cacheHits, cacheMisses };
+  // Migration observability: the shadow-read divergence counter is the gate a
+  // Mongo→Postgres cutover is judged by (proceed only once it flatlines at ~0),
+  // and the dual-write-failure counter surfaces secondary-store drift to reconcile.
+  const migrationDivergences = new Counter<'entity' | 'operation'>({
+    name: 'migration_divergences_total',
+    help: 'Total shadow-read divergences between the primary and secondary store',
+    labelNames: ['entity', 'operation'],
+    registers: [registry],
+  });
+
+  const dualWriteFailures = new Counter<'entity' | 'operation'>({
+    name: 'dual_write_failures_total',
+    help: 'Total best-effort secondary-store write failures during dual-write',
+    labelNames: ['entity', 'operation'],
+    registers: [registry],
+  });
+
+  app.metrics = { registry, cacheHits, cacheMisses, migrationDivergences, dualWriteFailures };
 }

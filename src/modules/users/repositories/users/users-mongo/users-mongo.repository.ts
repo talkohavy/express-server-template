@@ -1,6 +1,7 @@
 import { Types, type ApplyBasicCreateCasting, type QueryFilter } from 'mongoose';
 import { getProjection } from '@src/databases/mongo/logic/utils/getProjection';
 import { UserModel } from '@src/databases/mongo/models/user/user.model';
+import { mapMongoDocToDatabaseUser } from './logic/mapMongoDocToDatabaseUser';
 import type { DatabaseUser } from '../../../types';
 import type {
   IUsersRepository,
@@ -23,15 +24,19 @@ export class UsersMongoRepository implements IUsersRepository {
 
     const userResult = await UserModel.findOne(queryStatement, fieldProjection, queryOptions);
 
-    return userResult;
+    const mappedUser = mapMongoDocToDatabaseUser({ doc: userResult });
+
+    return mappedUser;
   }
 
   async createUser(body: CreateUserDto): Promise<DatabaseUser> {
     const userData: ApplyBasicCreateCasting<any> = { _id: new ObjectId(), ...body };
 
-    const userResult = (await UserModel.create(userData)) as unknown as DatabaseUser;
+    const userResult = await UserModel.create(userData);
 
-    return userResult;
+    const mappedUser = mapMongoDocToDatabaseUser({ doc: userResult.toObject() }) as DatabaseUser;
+
+    return mappedUser;
   }
 
   async getUsers(props?: GetUsersProps): Promise<Array<DatabaseUser>> {
@@ -54,7 +59,8 @@ export class UsersMongoRepository implements IUsersRepository {
       query = query.sort(sortObj);
     }
 
-    const users = (await query.exec()) as unknown as Array<DatabaseUser>;
+    const rawUsers = await query.lean().exec();
+    const users = rawUsers.map((doc) => mapMongoDocToDatabaseUser({ doc }) as DatabaseUser);
 
     return users;
   }
@@ -64,9 +70,11 @@ export class UsersMongoRepository implements IUsersRepository {
     const projection = undefined; // getProjection(fields);
     const queryOptions = { lean: true, ...optionsRaw };
 
-    const userResult = (await UserModel.findById(userId, projection, queryOptions)) as DatabaseUser | null; // <--- This query ONLY WORKS if you had manually declared an _id field in your model. If not, you'd get back an error saying: "Argument passed in must be a string of 12 bytes or a string of 24 hex characters or an integer"
+    const userResult = await UserModel.findById(userId, projection, queryOptions); // <--- This query ONLY WORKS if you had manually declared an _id field in your model. If not, you'd get back an error saying: "Argument passed in must be a string of 12 bytes or a string of 24 hex characters or an integer"
 
-    return userResult;
+    const mappedUser = mapMongoDocToDatabaseUser({ doc: userResult });
+
+    return mappedUser;
   }
 
   async updateUserById(userId: string, body: UpdateUserDto): Promise<DatabaseUser> {
@@ -74,11 +82,9 @@ export class UsersMongoRepository implements IUsersRepository {
     const updateStatement = [{ $addFields: body }];
     const updateOptions = { new: true, lean: true }; // As an alternative to the `new` option, you can also use the `returnOriginal` option. returnOriginal: false is equivalent to new: true. The returnOriginal option exists for consistency with the the MongoDB Node driver's findOneAndUpdate(), which has the same option.
 
-    const updatedUser = (await UserModel.findOneAndUpdate(
-      queryStatement,
-      updateStatement,
-      updateOptions,
-    )) as unknown as DatabaseUser;
+    const updatedDoc = await UserModel.findOneAndUpdate(queryStatement, updateStatement, updateOptions);
+
+    const updatedUser = mapMongoDocToDatabaseUser({ doc: updatedDoc }) as DatabaseUser;
 
     return updatedUser;
   }

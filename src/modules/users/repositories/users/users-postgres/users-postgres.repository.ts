@@ -1,6 +1,6 @@
 import { DatabaseError } from 'pg';
-import { RoleTypes } from '@src/common/constants';
 import { UserAlreadyExistsError } from '../../../logic/errors/user-already-exists.error';
+import { mapPgRowToDatabaseUser } from './logic/mapPgRowToDatabaseUser';
 import type { Client } from 'pg';
 import type { DatabaseUser } from '../../../types';
 import type {
@@ -21,19 +21,11 @@ export class UsersPostgresRepository implements IUsersRepository {
 
     const dbResult = await this.pgClient.query<DatabaseUser>(query, [email]);
 
-    if (dbResult.rows.length === 0) {
-      dbResult.rows.push({
-        id: -1,
-        nickname: 'dummy',
-        email: 'dummy@gmail.com',
-        hashed_password:
-          'salt:703453cc3a2dba8d0bed63a5757cc905ee6a6ab357caed7cdf8acdb16d9ea0706647a06259ebc0379bc413b4f0f9dcd51fff8d971f70a99872845a1c908e7462',
-        date_of_birth: 0,
-        role: RoleTypes.User,
-      } as DatabaseUser);
-    }
-
-    const fetchedUser = dbResult.rows[0] || null;
+    // A missing user MUST return null. (Previously this pushed a hardcoded dummy
+    // user with id: -1, which silently broke callers and — critically for the
+    // Mongo→Postgres migration — poisoned shadow-read: Postgres would "find" a
+    // dummy where Mongo correctly returns nothing, producing permanent false divergence.)
+    const fetchedUser = mapPgRowToDatabaseUser({ row: dbResult.rows[0] });
 
     return fetchedUser;
   }
@@ -50,7 +42,7 @@ export class UsersPostgresRepository implements IUsersRepository {
 
       const dbResult = await this.pgClient.query(query, values);
 
-      const createdUser = dbResult.rows[0] as DatabaseUser;
+      const createdUser = mapPgRowToDatabaseUser({ row: dbResult.rows[0] }) as DatabaseUser;
 
       return createdUser;
     } catch (error) {
@@ -92,14 +84,18 @@ export class UsersPostgresRepository implements IUsersRepository {
     }
 
     const result = await this.pgClient.query(query, values);
-    return result.rows as DatabaseUser[];
+    const users = result.rows.map((row) => mapPgRowToDatabaseUser({ row }) as DatabaseUser);
+
+    return users;
   }
 
   async getUserById(userId: string, _options: GetUserByIdOptions = {}): Promise<DatabaseUser | null> {
     const query = 'SELECT * FROM users WHERE id = $1';
     const result = await this.pgClient.query(query, [userId]);
 
-    return result.rows[0] || null;
+    const fetchedUser = mapPgRowToDatabaseUser({ row: result.rows[0] });
+
+    return fetchedUser;
   }
 
   async updateUserById(userId: string, body: UpdateUserDto): Promise<DatabaseUser> {
@@ -117,7 +113,9 @@ export class UsersPostgresRepository implements IUsersRepository {
     `;
 
     const result = await this.pgClient.query(query, values);
-    return result.rows[0] as DatabaseUser;
+    const updatedUser = mapPgRowToDatabaseUser({ row: result.rows[0] }) as DatabaseUser;
+
+    return updatedUser;
   }
 
   async deleteUserById(userId: string): Promise<boolean> {
