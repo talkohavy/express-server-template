@@ -8,6 +8,7 @@ A server is always a pair of files: `initServer.ts` and `buildApp.ts`.
 ## initServer.ts
 
 Responsible for:
+
 - Creating the raw Express app.
 - Calling `buildApp(app)` to compose the app.
 - Reading the port from config.
@@ -17,6 +18,7 @@ Responsible for:
 ## buildApp.ts
 
 Responsible for:
+
 - Exporting an async function called `buildApp`.
 - Accepting the raw Express app.
 - Instantiating `AppFactory` with the `app` and `optimizedApp`.
