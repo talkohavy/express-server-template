@@ -301,13 +301,14 @@ export class FileUploadService {
       if (nextBoundaryIndex === -1) {
         remainingBuffer = remainingBuffer.subarray(contentStartIndex);
         break;
-      } else {
-        // 5. Extracting file content between boundaries
-        const fileContent = remainingBuffer.subarray(contentStartIndex, nextBoundaryIndex - 2);
-        // 6. Writing to file stream
-        fileStreamRef.current?.write(fileContent);
-        remainingBuffer = remainingBuffer.subarray(nextBoundaryIndex);
       }
+
+      // 5. Extracting file content between boundaries
+      const fileContent = remainingBuffer.subarray(contentStartIndex, nextBoundaryIndex - 2);
+
+      // 6. Writing to file stream
+      fileStreamRef.current?.write(fileContent);
+      remainingBuffer = remainingBuffer.subarray(nextBoundaryIndex);
     }
 
     bufferRef.current = remainingBuffer;
