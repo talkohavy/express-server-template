@@ -24,6 +24,7 @@
     "lint:biome:fix": "biome lint --write ./src",
     "tsc": "tsc -p tsconfig.json",
     "format": "prettier . --check --config .prettierrc.mjs --ignore-path .prettierignore",
+    "format:fix": "prettier . --write --config .prettierrc.mjs --ignore-path .prettierignore",
     "format:biome": "biome format ./src",
     "format:biome:fix": "biome format --verbose ./src --write",
     "test": "jest",
