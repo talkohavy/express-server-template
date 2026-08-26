@@ -208,12 +208,15 @@ const config = {
   // This option allows use of a custom test runner
   // testRunner: "jest-circus/runner",
 
-  // Transform ESM-only packages (e.g. @faker-js/faker).
+  // Transform ESM-only packages (e.g. @faker-js/faker, kysely).
   // Two patterns are needed for pnpm's nested layout:
   //   node_modules/.pnpm/<pkg@ver>/node_modules/<pkg>/...
-  // Pattern 1 ignores non-.pnpm and non-faker flat paths.
-  // Pattern 2 ignores non-faker packages inside .pnpm.
-  transformIgnorePatterns: ['/node_modules/(?!\\.pnpm|@faker-js/faker)', '/node_modules/\\.pnpm/(?!@faker-js\\+faker)'],
+  // Pattern 1 ignores non-.pnpm and non-faker/kysely flat paths.
+  // Pattern 2 ignores non-faker/kysely packages inside .pnpm.
+  transformIgnorePatterns: [
+    '/node_modules/(?!\\.pnpm|@faker-js/faker|kysely)',
+    '/node_modules/\\.pnpm/(?!@faker-js\\+faker|kysely)',
+  ],
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them
   // unmockedModulePathPatterns: undefined,

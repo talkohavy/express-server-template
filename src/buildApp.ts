@@ -12,6 +12,7 @@ import { registerUrlEncodedMiddleware } from './middlewares/urlEncoded.middlewar
 import { AuthenticationModule } from './modules/authentication';
 import { BackendModule } from './modules/backend';
 import { BooksModule } from './modules/books';
+import { DataQueryModule } from './modules/data-query';
 import { DragonsModule } from './modules/dragons';
 import { FileUploadModule } from './modules/file-upload';
 import { HealthCheckModule } from './modules/health-check';
@@ -73,6 +74,7 @@ export async function buildApp(app: Application) {
     AuthenticationModule,
     UsersModule,
     BooksModule,
+    DataQueryModule,
     DragonsModule,
     FileUploadModule,
     isSocketIOModuleEnabled && SocketIOModule, // <--- To make the SocketIO module work, make sure you comment out the wsPlugin above, and the WsModule below. Otherwise, you will get the error of "Invalid frame header".

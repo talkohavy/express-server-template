@@ -10,6 +10,7 @@ import type { TopicPublisherService } from '@src/core/services/topic-publisher';
 import type { TopicSubscriberService } from '@src/core/services/topic-subscriber';
 import type { AuthenticationModule } from '@src/modules/authentication';
 import type { BooksModule } from '@src/modules/books';
+import type { DataQueryModule } from '@src/modules/data-query';
 import type { DragonsModule } from '@src/modules/dragons';
 import type { FileUploadModule } from '@src/modules/file-upload';
 import type { HealthCheckModule } from '@src/modules/health-check';
@@ -27,6 +28,7 @@ export interface OptimizedApp {
     MetricsModule: MetricsModule;
     UsersModule: UsersModule;
     BooksModule: BooksModule;
+    DataQueryModule: DataQueryModule;
     DragonsModule: DragonsModule;
     FileUploadModule: FileUploadModule;
     RedisDebugModule: RedisDebugModule;

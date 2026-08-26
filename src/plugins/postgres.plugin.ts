@@ -22,6 +22,10 @@ export async function postgresPlugin(app: Application) {
   // Run migrations and seeds
   if (process.env.SHOULD_MIGRATE_POSTGRES) {
     await runAllMigrations(pgClient);
-    await runAllSeeds(pgClient, { users: { skipIfExists: false, clearBeforeSeeding: true } });
+    await runAllSeeds(pgClient, {
+      users: { skipIfExists: false, clearBeforeSeeding: true },
+      products: { skipIfExists: false, clearBeforeSeeding: true },
+      orders: { skipIfExists: false, clearBeforeSeeding: true },
+    });
   }
 }

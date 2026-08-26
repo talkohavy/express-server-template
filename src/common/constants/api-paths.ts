@@ -24,6 +24,9 @@ export const API_PATHS = {
   uploadFileBinary: '/api/upload-file/binary',
   // metrics
   metrics: '/api/metrics',
+  // data query
+  dataQuery: '/api/data',
+  dataQuerySchema: '/api/data/schema',
   // backend
   backendMiddleware: '/api/backend',
   internalWsState: '/api/internal/ws-state',

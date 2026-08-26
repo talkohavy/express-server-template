@@ -10,6 +10,7 @@ export const optimizedApp: OptimizedApp = {
     MetricsModule: null as any,
     UsersModule: null as any,
     BooksModule: null as any,
+    DataQueryModule: null as any,
     DragonsModule: null as any,
     FileUploadModule: null as any,
     WsModule: null as any,
