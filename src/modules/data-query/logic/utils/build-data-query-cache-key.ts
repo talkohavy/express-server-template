@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
-import type { WidgetQuery } from '../types';
+import { isObject } from '../../../../common/utils/isObject';
+import type { WidgetQuery } from '../../types';
 
 /**
- * Builds a stable Redis cache key for a widget query + caller role.
- * Deterministic regardless of object key order, so equivalent queries
+ * Builds a deterministic cache key regardless of object key order, so equivalent queries
  * (structurally) always hash to the same key.
  */
-export function buildCacheKey(query: WidgetQuery, role: string): string {
+export function buildDataQueryCacheKey(query: WidgetQuery, role: string): string {
   const sortedFilters = [...(query.filters ?? [])].sort((a, b) => a.field.localeCompare(b.field));
 
   const cacheableShape = {
@@ -31,10 +31,9 @@ function stableStringify(value: unknown): string {
     return `[${value.map(stableStringify).join(',')}]`;
   }
 
-  if (value !== null && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    const sortedKeys = Object.keys(record).sort();
-    const entries = sortedKeys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`);
+  if (isObject(value)) {
+    const sortedKeys = Object.keys(value).sort();
+    const entries = sortedKeys.map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`);
 
     return `{${entries.join(',')}}`;
   }

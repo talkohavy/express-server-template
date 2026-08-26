@@ -1,8 +1,8 @@
 import { parseJson } from '@src/common/utils/parseJson';
-import { buildCacheKey } from '../../logic/buildCacheKey';
-import { CACHE_TTL_SECONDS } from '../../logic/constants';
-import { assertQueryWithinBudget } from '../../logic/costEstimator';
 import { DataQueryError } from '../../logic/errors/DataQueryError';
+import { assertQueryWithinBudget } from '../../logic/utils/assert-query-within-budget';
+import { buildDataQueryCacheKey } from '../../logic/utils/build-data-query-cache-key';
+import { QueryStatuses, CACHE_TTL_SECONDS } from './logic/constants';
 import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
 import type { DataQueryExecutionContext, WidgetQuery, WidgetQueryResult } from '../../types';
@@ -16,7 +16,7 @@ export class QueryExecutionService {
   ) {}
 
   /**
-   * Executes every widget query independently and concurrently. A failure in
+   * Executes every query independently and concurrently. A failure in
    * one query (unknown field, over budget, DB error, ...) never affects the
    * others - each result carries its own status.
    */
@@ -30,58 +30,66 @@ export class QueryExecutionService {
     const startedAt = Date.now();
 
     try {
-      const compiled = this.queryCompiler.compile(query, context.role);
+      const CompiledDataQuery = this.queryCompiler.compile(query, context.role);
 
-      assertQueryWithinBudget(query, compiled.dataset);
+      const { dataset, queryBuilder } = CompiledDataQuery;
 
-      const cacheKey = buildCacheKey(query, context.role);
-      const cacheHit = await this.redis.get(cacheKey);
+      assertQueryWithinBudget(query, dataset);
+
+      const queryCacheKey = buildDataQueryCacheKey(query, context.role);
+      const cacheHit = await this.redis.get(queryCacheKey);
 
       if (cacheHit) {
         const rows = parseJson<Record<string, unknown>[]>(cacheHit) ?? [];
 
-        return this.toSuccessResult(query.id, rows, startedAt, true);
+        return {
+          id: query.id,
+          status: QueryStatuses.Ok,
+          rows,
+          meta: {
+            rowCount: rows.length,
+            executionMs: Date.now() - startedAt,
+            cached: true,
+          },
+        };
       }
 
-      const rows = (await compiled.queryBuilder.execute()) as Record<string, unknown>[];
+      const rows = (await queryBuilder.execute()) as Record<string, unknown>[];
 
-      await this.redis.setEx(cacheKey, CACHE_TTL_SECONDS, JSON.stringify(rows));
+      await this.redis.setEx(queryCacheKey, CACHE_TTL_SECONDS, JSON.stringify(rows));
 
-      return this.toSuccessResult(query.id, rows, startedAt, false);
+      return {
+        id: query.id,
+        status: QueryStatuses.Ok,
+        rows,
+        meta: {
+          rowCount: rows.length,
+          executionMs: Date.now() - startedAt,
+          cached: false,
+        },
+      };
     } catch (error) {
-      return this.toErrorResult(query.id, error);
+      if (error instanceof DataQueryError) {
+        return {
+          id: query.id,
+          status: QueryStatuses.Error,
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+        };
+      }
+
+      this.logger.error(`Unexpected error executing widget query "${query.id}"`, error);
+
+      return {
+        id: query.id,
+        status: QueryStatuses.Error,
+        error: {
+          code: 'EXECUTION_ERROR',
+          message: 'Failed to execute query',
+        },
+      };
     }
-  }
-
-  private toSuccessResult(
-    id: string,
-    rows: Record<string, unknown>[],
-    startedAt: number,
-    cached: boolean,
-  ): WidgetQueryResult {
-    return {
-      id,
-      status: 'ok',
-      rows,
-      meta: {
-        rowCount: rows.length,
-        executionMs: Date.now() - startedAt,
-        cached,
-      },
-    };
-  }
-
-  private toErrorResult(id: string, error: unknown): WidgetQueryResult {
-    if (error instanceof DataQueryError) {
-      return { id, status: 'error', error: { code: error.code, message: error.message } };
-    }
-
-    this.logger.error(`Unexpected error executing widget query "${id}"`, error);
-
-    return {
-      id,
-      status: 'error',
-      error: { code: 'EXECUTION_ERROR', message: 'Failed to execute query' },
-    };
   }
 }

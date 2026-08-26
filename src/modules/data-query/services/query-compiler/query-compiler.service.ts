@@ -1,25 +1,13 @@
 import { sql } from 'kysely';
-import { DEFAULT_LIMIT } from '../../logic/constants';
 import { DataQueryError } from '../../logic/errors/DataQueryError';
 import { isRoleAllowed } from '../../logic/roleHierarchy';
+import { DEFAULT_LIMIT } from './logic/constants';
 import type { Kysely } from 'kysely';
 import type { RoleTypeValues } from '@src/common/constants';
 import type { Database, DatasetDefinition, FilterInput, WidgetQuery } from '../../types';
 import type { DatasetRegistryService } from '../dataset-registry';
 import type { CompiledDataQuery } from './types';
 
-/**
- * Turns a declarative WidgetQuery into a Kysely query, resolving every field
- * through the DatasetRegistryService. No raw table/column names ever come
- * from the client - only registry keys.
- *
- * NOTE on typing: because datasets/joins/columns are data (resolved at
- * runtime from the registry) rather than compile-time literals, this class
- * leans on Kysely's `dynamic` module (see logic/kyselyClient.ts and the
- * Kysely docs for `db.dynamic.ref`) and loosely-typed intermediate builders.
- * This is the standard escape hatch for building a generic query compiler on
- * top of a statically-typed query builder.
- */
 export class QueryCompilerService {
   constructor(
     private readonly dbClient: Kysely<Database>,
@@ -184,8 +172,7 @@ export class QueryCompilerService {
         );
       }
 
-      // Sorting by the output alias (valid standard SQL) avoids duplicating
-      // the dimension/measure expression-resolution logic here.
+      // Sorting by the output alias (valid standard SQL) avoids duplicating the dimension/measure expression-resolution logic here.
       result = result.orderBy(sql.id(sortInput.field), sortInput.direction);
     });
 
@@ -218,8 +205,7 @@ export class QueryCompilerService {
       return sql`date_trunc(${sql.lit(granularity)}, ${this.dbClient.dynamic.ref(dimension.column)})`;
     }
 
-    // Wrapped in `sql` (rather than returned as a bare dynamic ref) so it
-    // uniformly supports `.as(alias)`, same as the date_trunc branch above.
+    // Wrapped in `sql` (rather than returned as a bare dynamic ref) so it uniformly supports `.as(alias)`, same as the date_trunc branch above.
     return sql`${this.dbClient.dynamic.ref(dimension.column)}`;
   }
 }
