@@ -3,6 +3,28 @@
 ## A. TypeScript
 
 - Avoid `interface` keyword and prefer using `type` for types
+- Avoid declaring string/number literal union types by hand, e.g.:
+
+  ```typescript
+  export type DimensionValueType = 'string' | 'number' | 'boolean' | 'date';
+  ```
+
+  Instead, define a `const` object with `as const` and derive the union type from its values:
+
+  ```typescript
+  export const DimensionValueTypes = {
+    String: 'string',
+    Number: 'number',
+    Boolean: 'boolean',
+    Date: 'date',
+  } as const;
+
+  export type DimensionValueTypeValues = (typeof DimensionValueTypes)[keyof typeof DimensionValueTypes];
+  ```
+
+  See `src/common/constants/roles.ts` for a reference example in the codebase.
+
+  Naming convention: the object is named in **plural** form (e.g. `RoleTypes`, `DimensionValueTypes`), and the derived type is named in the **singular** form of the object name plus a `Values` suffix (e.g. `RoleTypeValues`, `DimensionValueTypeValues`).
 - Prefer async/await syntax over .then()/.catch()
 - Prefer using the `function` keyword to define functions rather than using arrow functions or `const` function expressions.
 - Prefer typescript over javascript.

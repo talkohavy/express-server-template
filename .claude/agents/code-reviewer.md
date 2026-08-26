@@ -39,6 +39,7 @@ Verify adherence to these hard rules from the project:
 ### 3. TypeScript Quality
 
 - Prefer `type` over `interface`.
+- No hand-written string/number literal union types (e.g. `type Foo = 'a' | 'b'`). These should be a `const` object with `as const`, with the union type derived via `(typeof Obj)[keyof typeof Obj]`. See `src/common/constants/roles.ts`. Naming: plural object name (e.g. `RoleTypes`), singular type name + `Values` suffix (e.g. `RoleTypeValues`).
 - No use of `any` without explicit justification.
 - Proper return type annotations on public methods.
 - Correct use of generics where applicable.
