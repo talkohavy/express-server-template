@@ -33,8 +33,7 @@ export async function seedOrders(pgClient: Client, options: SeedOrdersOptions = 
   }
 
   if (clearBeforeSeeding) {
-    await pgClient.query(`DELETE FROM ${ORDERS_TABLE_NAME}`);
-    console.log('🗑️  Cleared existing orders');
+    await clearOrders(pgClient);
   }
 
   const userIds = await getAllIds(pgClient, USERS_TABLE_NAME);
@@ -49,6 +48,17 @@ export async function seedOrders(pgClient: Client, options: SeedOrdersOptions = 
   console.log(`🌱 Seeded ${insertedCount} orders successfully`);
 
   return insertedCount;
+}
+
+/**
+ * Deletes all rows from the orders table.
+ * Exported so `orders` can be cleared before `users`/`products`, since `orders`
+ * holds foreign keys referencing both and must be emptied first to avoid
+ * foreign key constraint violations.
+ */
+export async function clearOrders(pgClient: Client): Promise<void> {
+  await pgClient.query(`DELETE FROM ${ORDERS_TABLE_NAME}`);
+  console.log('🗑️  Cleared existing orders');
 }
 
 async function getOrderCount(pgClient: Client): Promise<number> {
