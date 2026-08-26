@@ -1,1 +1,1 @@
-export { QueryCompilerService, type CompiledDataQuery } from './query-compiler.service';
+export { QueryCompilerService } from './query-compiler.service';

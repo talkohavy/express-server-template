@@ -1,17 +1,12 @@
 import { parseJson } from '@src/common/utils/parseJson';
 import { buildCacheKey } from '../../logic/buildCacheKey';
+import { CACHE_TTL_SECONDS } from '../../logic/constants';
 import { assertQueryWithinBudget } from '../../logic/costEstimator';
 import { DataQueryError } from '../../logic/errors/DataQueryError';
 import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
 import type { DataQueryExecutionContext, WidgetQuery, WidgetQueryResult } from '../../types';
 import type { QueryCompilerService } from '../query-compiler';
-
-/**
- * Short TTL: dashboards re-request the same aggregates constantly, so even a
- * small cache window meaningfully cuts load, without serving very stale data.
- */
-const CACHE_TTL_SECONDS = 30;
 
 export class QueryExecutionService {
   constructor(

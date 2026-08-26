@@ -1,17 +1,12 @@
 import { sql } from 'kysely';
+import { DEFAULT_LIMIT } from '../../logic/constants';
 import { DataQueryError } from '../../logic/errors/DataQueryError';
 import { isRoleAllowed } from '../../logic/roleHierarchy';
-import type { Kysely, SelectQueryBuilder } from 'kysely';
+import type { Kysely } from 'kysely';
 import type { RoleTypeValues } from '@src/common/constants';
 import type { Database, DatasetDefinition, FilterInput, WidgetQuery } from '../../types';
 import type { DatasetRegistryService } from '../dataset-registry';
-
-const DEFAULT_LIMIT = 100;
-
-export type CompiledDataQuery = {
-  dataset: DatasetDefinition;
-  queryBuilder: SelectQueryBuilder<Database, any, any>;
-};
+import type { CompiledDataQuery } from './types';
 
 /**
  * Turns a declarative WidgetQuery into a Kysely query, resolving every field
@@ -27,7 +22,7 @@ export type CompiledDataQuery = {
  */
 export class QueryCompilerService {
   constructor(
-    private readonly db: Kysely<Database>,
+    private readonly dbClient: Kysely<Database>,
     private readonly datasetRegistry: DatasetRegistryService,
   ) {}
 
@@ -41,7 +36,7 @@ export class QueryCompilerService {
       throw new DataQueryError('UNKNOWN_DATASET', `Unknown dataset "${query.dataset}"`);
     }
 
-    let queryBuilder: any = this.db.selectFrom(dataset.table as any);
+    let queryBuilder: any = this.dbClient.selectFrom(dataset.table as any);
 
     queryBuilder = this.applyJoins(queryBuilder, dataset);
     queryBuilder = this.applySelect(queryBuilder, query, dataset, role);
@@ -58,7 +53,7 @@ export class QueryCompilerService {
 
     for (const join of dataset.joins ?? []) {
       result = result.innerJoin(join.table as any, (jb: any) =>
-        jb.onRef(this.db.dynamic.ref(join.leftColumn), '=', this.db.dynamic.ref(join.rightColumn)),
+        jb.onRef(this.dbClient.dynamic.ref(join.leftColumn), '=', this.dbClient.dynamic.ref(join.rightColumn)),
       );
     }
 
@@ -91,7 +86,7 @@ export class QueryCompilerService {
         throw new DataQueryError('FORBIDDEN_FIELD', `Measure "${key}" is not available for your role`);
       }
 
-      const ref = this.db.dynamic.ref(measure.column);
+      const ref = this.dbClient.dynamic.ref(measure.column);
 
       result = result.select((eb: any) => eb.fn[measure.aggregation](ref).as(key));
     });
@@ -107,7 +102,7 @@ export class QueryCompilerService {
     });
 
     if (dataset.timeField && query.timeRange) {
-      const ref = this.db.dynamic.ref(dataset.timeField);
+      const ref = this.dbClient.dynamic.ref(dataset.timeField);
 
       if (query.timeRange.from) {
         result = result.where(ref, '>=', new Date(query.timeRange.from));
@@ -130,7 +125,7 @@ export class QueryCompilerService {
       );
     }
 
-    const ref = this.db.dynamic.ref(dimension.column);
+    const ref = this.dbClient.dynamic.ref(dimension.column);
 
     switch (filter.operator) {
       case 'eq':
@@ -220,11 +215,11 @@ export class QueryCompilerService {
     const isTimeField = dataset.timeField === dimension.column;
 
     if (isTimeField && granularity) {
-      return sql`date_trunc(${sql.lit(granularity)}, ${this.db.dynamic.ref(dimension.column)})`;
+      return sql`date_trunc(${sql.lit(granularity)}, ${this.dbClient.dynamic.ref(dimension.column)})`;
     }
 
     // Wrapped in `sql` (rather than returned as a bare dynamic ref) so it
     // uniformly supports `.as(alias)`, same as the date_trunc branch above.
-    return sql`${this.db.dynamic.ref(dimension.column)}`;
+    return sql`${this.dbClient.dynamic.ref(dimension.column)}`;
   }
 }
