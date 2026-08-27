@@ -24,6 +24,7 @@ export const optimizedApp: OptimizedApp = {
     sub: null as any,
   },
   pg: null as any,
+  kysely: null as any,
   logger: null as any,
   callContextService: null as any,
   httpServer: null as any,

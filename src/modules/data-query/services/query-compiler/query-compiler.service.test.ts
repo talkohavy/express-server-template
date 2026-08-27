@@ -1,7 +1,7 @@
 import { RoleTypes } from '@src/common/constants';
+import { createKyselyClient } from '@src/core/connections/kysely.connection';
 import { DEFAULT_DATASETS } from '../../logic/constants';
 import { DataQueryError } from '../../logic/errors/DataQueryError';
-import { createDataQueryDbClient } from '../../logic/kyselyClient';
 import { DatasetRegistryService } from '../dataset-registry';
 import { QueryCompilerService } from './query-compiler.service';
 import type { Kysely } from 'kysely';
@@ -26,7 +26,7 @@ describe('QueryCompilerService', () => {
   beforeAll(() => {
     // Compiling a query never touches the network, so a Pool pointed at a
     // bogus connection string is safe to use here - it's never connected.
-    db = createDataQueryDbClient('postgres://user:pass@localhost:5432/test_db');
+    db = createKyselyClient({ connectionString: 'postgres://user:pass@localhost:5432/test_db' });
     datasetRegistryService = new DatasetRegistryService(DEFAULT_DATASETS);
     queryCompilerService = new QueryCompilerService(db, datasetRegistryService);
   });

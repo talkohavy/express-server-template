@@ -1,4 +1,5 @@
 import type { Server as HttpServer } from 'http';
+import type { Kysely } from 'kysely';
 import type { Client as PgClient } from 'pg';
 import type { RedisClientType } from 'redis';
 import type { Server as SocketIOServer } from 'socket.io';
@@ -10,7 +11,7 @@ import type { TopicPublisherService } from '@src/core/services/topic-publisher';
 import type { TopicSubscriberService } from '@src/core/services/topic-subscriber';
 import type { AuthenticationModule } from '@src/modules/authentication';
 import type { BooksModule } from '@src/modules/books';
-import type { DataQueryModule } from '@src/modules/data-query';
+import type { DataQueryModule, Database } from '@src/modules/data-query';
 import type { DragonsModule } from '@src/modules/dragons';
 import type { FileUploadModule } from '@src/modules/file-upload';
 import type { HealthCheckModule } from '@src/modules/health-check';
@@ -43,6 +44,7 @@ export interface OptimizedApp {
     sub: RedisClientType;
   };
   pg: PgClient;
+  kysely: Kysely<Database>;
   logger: LoggerService;
   httpServer: HttpServer;
   socketIOApp: SocketIOServer;

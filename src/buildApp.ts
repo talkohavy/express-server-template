@@ -26,6 +26,7 @@ import { WsModule } from './modules/ws';
 import { callContextPlugin } from './plugins/call-context.plugin';
 import { configServicePlugin } from './plugins/config-service';
 import { httpServerPlugin } from './plugins/http-server.plugin';
+import { kyselyPlugin } from './plugins/kysely.plugin';
 import { loggerPlugin } from './plugins/logger.plugin';
 import { metricsPlugin } from './plugins/metrics.plugin';
 import { postgresPlugin } from './plugins/postgres.plugin';
@@ -49,6 +50,7 @@ export async function buildApp(app: Application) {
     loggerPlugin,
     metricsPlugin,
     postgresPlugin,
+    kyselyPlugin,
     redisPlugin,
     httpServerPlugin,
     topicPublisherPlugin,
