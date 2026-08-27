@@ -30,9 +30,9 @@ export class QueryExecutionService {
     const startedAt = Date.now();
 
     try {
-      const CompiledDataQuery = this.queryCompiler.compile(query, context.role);
+      const compiledQuery = this.queryCompiler.compile(query, context.role);
 
-      const { dataset, queryBuilder } = CompiledDataQuery;
+      const { dataset, queryBuilder } = compiledQuery;
 
       assertQueryWithinBudget(query, dataset);
 
