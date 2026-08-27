@@ -1,6 +1,6 @@
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
-import { resolveRole } from '../../logic/resolveRole';
+import { resolveRole } from '../../logic/utils/resolveRole';
 import { executeDataQueriesSchema } from './dto/executeQueries.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';

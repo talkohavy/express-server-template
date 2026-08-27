@@ -1,6 +1,6 @@
 import { sql } from 'kysely';
 import { DataQueryError } from '../../logic/errors/DataQueryError';
-import { isRoleAllowed } from '../../logic/roleHierarchy';
+import { isRoleAllowed } from '../../logic/utils/roleHierarchy';
 import { DEFAULT_LIMIT } from './logic/constants';
 import type { Kysely } from 'kysely';
 import type { RoleTypeValues } from '@src/common/constants';

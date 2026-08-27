@@ -5,3 +5,5 @@ export const RoleTypes = {
 } as const;
 
 export type RoleTypeValues = (typeof RoleTypes)[keyof typeof RoleTypes];
+
+export const VALID_ROLES = new Set<string>(Object.values(RoleTypes));

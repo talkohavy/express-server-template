@@ -1,4 +1,4 @@
-import { isRoleAllowed } from '../../logic/roleHierarchy';
+import { isRoleAllowed } from '../../logic/utils/roleHierarchy';
 import type { RoleTypeValues } from '@src/common/constants';
 import type { DatasetDefinition, PublicDatasetSchema } from '../../types';
 
