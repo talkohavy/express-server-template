@@ -10,6 +10,10 @@ declare module 'express' {
      * Only exists after applying the `joiQueryMiddleware`.
      */
     queryParsed?: any;
+    /**
+     * Only exists after applying the `joiBodyMiddleware`.
+     */
+    bodyParsed?: any;
     userPermissions?: string[];
   }
 

@@ -8,9 +8,9 @@ export function joiQueryMiddleware(validationSchema: Joi.ObjectSchema<any>): any
 
     const { error, value: castedValues } = validationSchema.validate(query);
 
-    req.queryParsed = castedValues;
-
     if (error) throw new BadRequestError(error.message);
+
+    req.queryParsed = castedValues;
 
     next();
   };
