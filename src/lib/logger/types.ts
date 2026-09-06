@@ -7,8 +7,10 @@ export type LoggerSettings = {
    */
   logLevel?: LogLevelValues;
   /**
-   * Whether to use colored output in the logs.
+   * Whether to use colored pretty print output in the logs.
+   *
+   * Useful for development environments.
    * @default false
    */
-  useColoredOutput?: boolean;
+  usePrettyPrint?: boolean;
 };

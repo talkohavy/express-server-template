@@ -73,11 +73,13 @@ export class Logger implements ILogger {
     this.logMe(logMetadata, LogLevel.Fatal);
   }
 
-  private logMe(logMetadata: string, level: LogLevelValues): void {
-    if (this.settings.useColoredOutput) {
-      this.logFormattedOutput(logMetadata, level);
+  private logMe(logMetadata: Record<string, any>, level: LogLevelValues): void {
+    if (this.settings.usePrettyPrint) {
+      const prettyStringifiedLog = JSON.stringify(logMetadata, null, 2);
+      this.logFormattedOutput(prettyStringifiedLog, level);
     } else {
-      this.logRawOutput(logMetadata);
+      const compactStringifiedLog = JSON.stringify(logMetadata);
+      this.logRawOutput(compactStringifiedLog);
     }
   }
 
@@ -109,7 +111,7 @@ export class Logger implements ILogger {
       ...this.fixedKeys,
     };
 
-    return JSON.stringify(enrichedLogMetadata, null, 2);
+    return enrichedLogMetadata;
   }
 
   private shouldLog(logLevel: LogLevelValues) {

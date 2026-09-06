@@ -73,10 +73,10 @@ export type ValidEnv = {
    */
   LOG_ENV: EnvironmentValues;
   /**
-   * Whether to use colored output in the logs.
+   * Whether to use pretty print output in the logs.
    * @default false
    */
-  USE_COLORS: boolean;
+  USE_PRETTY_PRINT: boolean;
   /**
    * Used to identify the service in the logs.
    * @default 'my-nest-like-server'

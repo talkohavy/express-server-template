@@ -34,7 +34,7 @@ export function configuration(): Config {
       serviceName: env.SERVICE_NAME,
       logLevel: env.LOG_LEVEL,
       logEnv: env.LOG_ENV,
-      useColoredOutput: env.USE_COLORS,
+      usePrettyPrint: env.USE_PRETTY_PRINT,
     },
     postgres: {
       connectionString: env.POSTGRES_CONNECTION_STRING,

@@ -31,4 +31,5 @@ export const envSchema = Joi.object<ValidEnv>({
   IS_CI: Joi.boolean().default(false),
   DOMAIN: Joi.string().default('localhost'),
   NODE_ENV: Joi.string().optional(),
+  USE_PRETTY_PRINT: Joi.boolean().default(false),
 }).unknown(true);

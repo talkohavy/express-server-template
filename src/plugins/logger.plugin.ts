@@ -13,7 +13,7 @@ import type { LoggerServiceSettings } from './config-service/types';
 export function loggerPlugin(app: Application) {
   const { configService, callContextService } = app;
 
-  const logSettings = configService.get(ConfigKeys.LogSettings);
+  const logSettings = configService.get<LoggerServiceSettings>(ConfigKeys.LogSettings);
 
   const loggerService = initLoggerService(logSettings, callContextService);
 
@@ -23,7 +23,7 @@ export function loggerPlugin(app: Application) {
 function initLoggerService(logSettings: LoggerServiceSettings, callContextService: CallContextService): LoggerService {
   const settings: LoggerSettings = {
     logLevel: logSettings.logLevel,
-    useColoredOutput: logSettings.useColoredOutput,
+    usePrettyPrint: logSettings.usePrettyPrint,
   };
 
   const fixedKeys = {
