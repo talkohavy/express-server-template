@@ -85,5 +85,10 @@
         "organizeImports": "off"
       }
     }
+  },
+  "css": {
+    "linter": {
+      "enabled": false
+    }
   }
 }
