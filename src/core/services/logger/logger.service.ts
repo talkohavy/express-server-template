@@ -23,7 +23,7 @@ export class LoggerService {
   info(message: string, data?: any) {
     const logMetadata = this.addLogContext(data);
 
-    this.logger.debug(message, logMetadata);
+    this.logger.info(message, logMetadata);
   }
 
   warn(message: string, data?: any) {
