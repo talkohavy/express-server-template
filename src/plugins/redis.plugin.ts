@@ -5,12 +5,15 @@ import type { Application } from 'express';
 /**
  * @dependencies
  * - config-service plugin
+ * - logger plugin
  */
 export async function redisPlugin(app: Application) {
+  const { logger } = app;
+
   const { connectionString } = app.configService.get<RedisConfig>(ConfigKeys.Redis);
 
-  const pubConnection = new RedisConnection({ connectionString, connectionName: 'pub' });
-  const subConnection = new RedisConnection({ connectionString, connectionName: 'sub' });
+  const pubConnection = new RedisConnection(logger, { connectionString, connectionName: 'pub' });
+  const subConnection = new RedisConnection(logger, { connectionString, connectionName: 'sub' });
 
   const redisPubConnection = pubConnection;
   const redisSubConnection = subConnection;
