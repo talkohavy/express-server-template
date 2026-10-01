@@ -123,6 +123,6 @@
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
   },
   "compileOnSave": true,
-  "include": ["src", "jest.config.ts", "toolbox/tests"],
+  "include": ["src", "jest.config.ts", "toolbox"],
   "exclude": ["node_modules", "dist"]
 }
