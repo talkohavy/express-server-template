@@ -1,5 +1,6 @@
 allowBuilds:
   '@bufbuild/buf': true
+  '@parcel/watcher': true
   '@scarf/scarf': true
   esbuild: true
   protobufjs: true
