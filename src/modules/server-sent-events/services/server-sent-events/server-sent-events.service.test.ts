@@ -66,7 +66,7 @@ describe('ServerSentEventsService', () => {
 
       listener(JSON.stringify({ event: 'update', data: { a: 1 } }));
 
-      expect(sseConnectionsService.sendToAll).toHaveBeenCalledWith({ message: 'event: update\ndata: {"a":1}\n\n' });
+      expect(sseConnectionsService.sendToAll).toHaveBeenCalledWith('event: update\ndata: {"a":1}\n\n');
     });
 
     it('should ignore invalid JSON payloads', async () => {

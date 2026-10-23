@@ -1,3 +1,4 @@
+import { SSE_HEARTBEAT_INTERVAL_MS } from '../../logic/constants';
 import { SseConnectionsService } from './sse-connections.service';
 import type { Response } from 'express';
 import type { LoggerService } from '@src/core/services/logger';
@@ -115,6 +116,55 @@ describe('SseConnectionsService', () => {
       service.sendToAll('data: x\n\n');
 
       expect(healthyResponse.write).toHaveBeenCalledWith('data: x\n\n');
+    });
+  });
+
+  describe('heartbeat', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should send a ping comment to every connection on each interval', () => {
+      const responses = [createResponseMock(), createResponseMock()];
+      responses.forEach((response) => service.register(response));
+
+      jest.advanceTimersByTime(SSE_HEARTBEAT_INTERVAL_MS);
+
+      responses.forEach((response) => expect(response.write).toHaveBeenCalledWith(': ping\n\n'));
+    });
+
+    it('should not start more than one heartbeat timer', () => {
+      service.register(createResponseMock());
+      service.register(createResponseMock());
+
+      const actualResult = jest.getTimerCount();
+
+      expect(actualResult).toBe(1);
+    });
+
+    it('should stop the heartbeat once the last connection is unregistered', () => {
+      const connection = service.register(createResponseMock());
+
+      service.unregister(connection.id);
+
+      const actualResult = jest.getTimerCount();
+
+      expect(actualResult).toBe(0);
+    });
+
+    it('should keep the heartbeat running while other connections remain', () => {
+      const first = service.register(createResponseMock());
+      const secondResponse = createResponseMock();
+      service.register(secondResponse);
+
+      service.unregister(first.id);
+      jest.advanceTimersByTime(SSE_HEARTBEAT_INTERVAL_MS);
+
+      expect(secondResponse.write).toHaveBeenCalledWith(': ping\n\n');
     });
   });
 });
