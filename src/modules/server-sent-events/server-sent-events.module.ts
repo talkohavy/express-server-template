@@ -18,6 +18,8 @@ export class ServerSentEventModule implements ModuleFactory {
 
     this.serverSentEventsService = new ServerSentEventsService(this.app.logger, redisPubClient, redisSubClient);
 
+    await this.serverSentEventsService.subscribeToEvents();
+
     // SSE always attaches routes directly - clients connect to this endpoint
     // without going through the BFF (persistent connections don't proxy well)
     this.attachControllers();

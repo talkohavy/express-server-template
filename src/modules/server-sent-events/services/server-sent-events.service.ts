@@ -9,8 +9,10 @@ export class ServerSentEventsService {
     private readonly logger: LoggerService,
     private readonly redisPubClient: RedisClientType,
     private readonly redisSubClient: RedisClientType,
-  ) {
-    this.redisSubClient.subscribe('sse-events', (content) => {
+  ) {}
+
+  async subscribeToEvents() {
+    await this.redisSubClient.subscribe('sse-events', (content) => {
       this.logger.log('Received event:', content);
 
       this.clients.forEach((client) => {
