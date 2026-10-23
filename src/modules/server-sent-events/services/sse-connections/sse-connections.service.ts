@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { SSE_HEARTBEAT_INTERVAL_MS } from '../../logic/constants';
+import {
+  SSE_HEARTBEAT_INTERVAL_MS,
+  SSE_SHUTDOWN_FLUSH_TIMEOUT_MS,
+  SSE_SHUTDOWN_RETRY_JITTER_MS,
+  SSE_SHUTDOWN_RETRY_MIN_MS,
+  SseCloseReasons,
+} from '../../logic/constants';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { Response } from 'express';
 import type { LoggerService } from '@src/core/services/logger';
@@ -13,7 +19,7 @@ const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
  * Writes pre-serialized messages to connections; it knows nothing about Redis.
  *
  * Also keeps connections alive through proxies with a single heartbeat timer (not one per connection),
- * running only while there are connections.
+ * running only while there are connections, and closes every connection on shutdown with a jittered `retry:`.
  */
 export class SseConnectionsService {
   private readonly connections = new Map<string, SseConnection>();
@@ -77,6 +83,34 @@ export class SseConnectionsService {
     return this.connections.size;
   }
 
+  /**
+   * Call on shutdown. Stops the heartbeat, tells every client to reconnect after a random delay,
+   * and ends every response. Resolves once all final messages are flushed, or after a timeout.
+   */
+  async closeAllConnections(): Promise<void> {
+    this.stopHeartbeat();
+
+    const connectionsArr = Array.from(this.connections.values());
+
+    this.connections.clear();
+
+    const allConnectionsEndedPromise = Promise.all(connectionsArr.map((connection) => this.endWithRetry(connection)));
+
+    let flushTimeout: NodeJS.Timeout | undefined;
+    const flushTimeoutPromise = new Promise<void>((resolve) => {
+      flushTimeout = setTimeout(resolve, SSE_SHUTDOWN_FLUSH_TIMEOUT_MS);
+    });
+
+    await Promise.race([allConnectionsEndedPromise, flushTimeoutPromise]);
+
+    clearTimeout(flushTimeout);
+
+    this.logger.info('Closed all SSE connections', {
+      connectionsCount: connectionsArr.length,
+      reason: SseCloseReasons.Shutdown,
+    });
+  }
+
   private write(props: WriteProps): boolean {
     const { connection, message } = props;
     const { response } = connection;
@@ -91,6 +125,23 @@ export class SseConnectionsService {
       this.logger.error('Failed to write SSE message', { connectionId: connection.id, error });
 
       return false;
+    }
+  }
+
+  private async endWithRetry(connection: SseConnection): Promise<void> {
+    const { response } = connection;
+
+    if (response.writableEnded || response.destroyed) return;
+
+    const retry = SSE_SHUTDOWN_RETRY_MIN_MS + Math.floor(Math.random() * SSE_SHUTDOWN_RETRY_JITTER_MS);
+    const retryMessage = formatSseMessage({ retry });
+
+    try {
+      await new Promise<void>((resolve) => {
+        response.end(retryMessage, () => resolve());
+      });
+    } catch (error) {
+      this.logger.error('Failed to end SSE connection', { connectionId: connection.id, error });
     }
   }
 

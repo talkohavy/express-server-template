@@ -7,7 +7,7 @@ import type { SseConnectionsService } from '../sse-connections';
 describe('ServerSentEventsService', () => {
   let service: ServerSentEventsService;
   let redisPubClient: { publish: jest.Mock };
-  let redisSubClient: { subscribe: jest.Mock };
+  let redisSubClient: { subscribe: jest.Mock; unsubscribe: jest.Mock };
   let sseConnectionsService: { sendToAll: jest.Mock };
   let logger: { info: jest.Mock; error: jest.Mock };
 
@@ -21,7 +21,10 @@ describe('ServerSentEventsService', () => {
 
   beforeEach(() => {
     redisPubClient = { publish: jest.fn().mockResolvedValue(1) };
-    redisSubClient = { subscribe: jest.fn().mockResolvedValue(undefined) };
+    redisSubClient = {
+      subscribe: jest.fn().mockResolvedValue(undefined),
+      unsubscribe: jest.fn().mockResolvedValue(undefined),
+    };
     sseConnectionsService = { sendToAll: jest.fn() };
     logger = { info: jest.fn(), error: jest.fn() };
 
@@ -103,6 +106,27 @@ describe('ServerSentEventsService', () => {
       jest.advanceTimersByTime(5000);
 
       expect(redisPubClient.publish).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should unsubscribe from the SSE channel', async () => {
+      await service.subscribeToEvents();
+
+      await service.cleanup();
+
+      expect(redisSubClient.unsubscribe).toHaveBeenCalledWith(SSE_EVENTS_CHANNEL);
+    });
+
+    it('should stop the simulation', async () => {
+      jest.useFakeTimers();
+      service.startSimulation();
+
+      await service.cleanup();
+      jest.advanceTimersByTime(5000);
+
+      expect(redisPubClient.publish).not.toHaveBeenCalled();
+      jest.useRealTimers();
     });
   });
 });

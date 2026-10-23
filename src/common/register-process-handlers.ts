@@ -1,4 +1,5 @@
 import type { Application } from 'express';
+import type { LoggerService } from '../core/services/logger';
 
 export function registerProcessHandlers(app: Application) {
   const onSignal = createSignalShutdownHandler(app);
@@ -15,12 +16,6 @@ function createSignalShutdownHandler(app: Application) {
 
   let isShuttingDown = false;
 
-  function logCleanupFailure(logProps: { message: string; error: unknown }) {
-    const { message, error } = logProps;
-
-    logger.error(message, { error });
-  }
-
   return async function onSignal() {
     if (isShuttingDown) return;
 
@@ -28,10 +23,9 @@ function createSignalShutdownHandler(app: Application) {
 
     logger.log('Shutting down gracefully...');
 
-    await cleanupTopicSubscriber({
+    await runCleanupSteps({
       app,
-      failureMessage: 'Redis WS cleanup failed during graceful shutdown',
-      logFailure: logCleanupFailure,
+      reasonLabel: 'graceful shutdown',
     });
 
     logger.log('Cleanup finished');
@@ -41,37 +35,51 @@ function createSignalShutdownHandler(app: Application) {
 }
 
 function createFatalErrorHandler(app: Application) {
-  function logCleanupFailure(logProps: { message: string; error: unknown }) {
-    const { message, error } = logProps;
-
-    console.error(message, { error });
-  }
-
   return async function onFatalError(reason: unknown) {
     console.error('Unhandled rejection or uncaught exception', { reason });
     console.error('Should not get here! You are missing a try/catch somewhere.');
 
-    await cleanupTopicSubscriber({
-      app,
-      failureMessage: 'Redis WS cleanup failed during unexpected shutdown',
-      logFailure: logCleanupFailure,
-    });
+    await runCleanupSteps({ app, reasonLabel: 'unexpected shutdown' });
 
     process.exit(1);
   };
 }
 
-async function cleanupTopicSubscriber(props: {
+type RunCleanupStepsProps = {
   app: Application;
+  reasonLabel: string;
+};
+
+async function runCleanupSteps(props: RunCleanupStepsProps) {
+  const { app, reasonLabel } = props;
+  const { logger, topicSubscriber, modules } = app;
+
+  // SSE goes first: clients are told to reconnect (to another node) as early as possible.
+  await runCleanupStep({
+    cleanup: () => modules.ServerSentEventsModule?.cleanup(),
+    failureMessage: `SSE cleanup failed during ${reasonLabel}`,
+    logger,
+  });
+
+  await runCleanupStep({
+    cleanup: () => topicSubscriber.cleanup(),
+    failureMessage: `Redis WS cleanup failed during ${reasonLabel}`,
+    logger,
+  });
+}
+
+type RunCleanupStepProps = {
+  cleanup: () => Promise<void> | undefined;
   failureMessage: string;
-  logFailure: (logProps: { message: string; error: unknown }) => void;
-}) {
-  const { app, failureMessage, logFailure } = props;
-  const { topicSubscriber } = app;
+  logger: LoggerService;
+};
+
+async function runCleanupStep(props: RunCleanupStepProps) {
+  const { cleanup, failureMessage, logger } = props;
 
   try {
-    await topicSubscriber.cleanup();
+    await cleanup();
   } catch (error) {
-    logFailure({ message: failureMessage, error });
+    logger.error(failureMessage, { error });
   }
 }

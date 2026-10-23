@@ -29,6 +29,17 @@ export class ServerSentEventsService {
   }
 
   /**
+   * Call on shutdown, before closing connections, so no new messages arrive while they are being closed.
+   */
+  async cleanup(): Promise<void> {
+    this.stopSimulation();
+
+    await this.redisSubClient.unsubscribe(SSE_EVENTS_CHANNEL);
+
+    this.logger.info(`Unsubscribed from Redis pub/sub channel: ${SSE_EVENTS_CHANNEL}`);
+  }
+
+  /**
    * @returns The number of Redis subscribers (nodes) that received the message.
    */
   async broadcast(props: BroadcastProps): Promise<number> {
