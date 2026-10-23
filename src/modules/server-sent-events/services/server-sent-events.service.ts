@@ -1,4 +1,4 @@
-import { createEventMessage } from '../utils/createEventMessage';
+import { createEventMessage } from '../utils/create-event-message';
 import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
 
