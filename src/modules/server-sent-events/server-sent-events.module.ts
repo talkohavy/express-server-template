@@ -1,35 +1,56 @@
-import { ServerSentEventsController } from './controllers/server-sent-events.controller';
-import { ServerSentEventsService } from './services/server-sent-events.service';
+import { ConfigKeys } from '@src/plugins/config-service';
+import { ServerSentEventsController } from './controllers';
+import { ServerSentEventsService, SseConnectionsService } from './services';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
 
 /**
  * @dependencies
- * - redis plugin
+ * - config-service plugin
  * - logger plugin
+ * - redis plugin
  */
-export class ServerSentEventModule implements ModuleFactory {
+export class ServerSentEventsModule implements ModuleFactory {
+  private sseConnectionsService!: SseConnectionsService;
   private serverSentEventsService!: ServerSentEventsService;
 
   constructor(private readonly app: Application) {}
 
   async init(): Promise<void> {
-    const { pub: redisPubClient, sub: redisSubClient } = this.app.redis;
+    const { logger, configService, redis } = this.app;
+    const { pub: redisPubClient, sub: redisSubClient } = redis;
 
-    this.serverSentEventsService = new ServerSentEventsService(this.app.logger, redisPubClient, redisSubClient);
+    this.sseConnectionsService = new SseConnectionsService(logger);
+    this.serverSentEventsService = new ServerSentEventsService(
+      logger,
+      this.sseConnectionsService,
+      redisPubClient,
+      redisSubClient,
+    );
 
     await this.serverSentEventsService.subscribeToEvents();
 
     // SSE always attaches routes directly - clients connect to this endpoint
     // without going through the BFF (persistent connections don't proxy well)
     this.attachControllers();
+
+    const isDev = configService.get<boolean>(ConfigKeys.IsDev);
+
+    if (isDev && process.env.SSE_SIMULATION === 'true') {
+      this.serverSentEventsService.startSimulation();
+    }
   }
 
   private attachControllers(): void {
-    const controller = new ServerSentEventsController(this.app, this.serverSentEventsService);
+    const serverSentEventsController = new ServerSentEventsController(this.app, this.sseConnectionsService);
 
-    controller.registerRoutes();
+    serverSentEventsController.registerRoutes();
+  }
 
-    this.serverSentEventsService.runSimulation();
+  get services() {
+    return {
+      sseConnectionsService: this.sseConnectionsService,
+      serverSentEventsService: this.serverSentEventsService,
+    };
   }
 }

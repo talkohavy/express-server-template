@@ -19,6 +19,7 @@ import type { FileUploadModule } from '@src/modules/file-upload';
 import type { HealthCheckModule } from '@src/modules/health-check';
 import type { MetricsModule } from '@src/modules/metrics';
 import type { RedisDebugModule } from '@src/modules/redis-debug';
+import type { ServerSentEventsModule } from '@src/modules/server-sent-events';
 import type { SwaggerModule } from '@src/modules/swagger';
 import type { UsersModule } from '@src/modules/users';
 import type { WsModule } from '@src/modules/ws';
@@ -37,6 +38,7 @@ export interface OptimizedApp {
     FileUploadModule: FileUploadModule;
     RedisDebugModule: RedisDebugModule;
     WsModule: WsModule;
+    ServerSentEventsModule: ServerSentEventsModule;
     SwaggerModule: SwaggerModule;
   };
   metrics: AppMetrics;

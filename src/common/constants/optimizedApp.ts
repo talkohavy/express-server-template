@@ -16,6 +16,7 @@ export const optimizedApp: OptimizedApp = {
     FileUploadModule: null as any,
     WsModule: null as any,
     RedisDebugModule: null as any,
+    ServerSentEventsModule: null as any,
     SwaggerModule: null as any,
   },
   metrics: null as any,

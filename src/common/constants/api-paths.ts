@@ -32,6 +32,8 @@ export const API_PATHS = {
   featureFlagByKey: '/api/feature-flags/:key',
   evaluateFeatureFlags: '/api/feature-flags/evaluate',
   isFeatureFlagEnabled: '/api/feature-flags/:key/enabled',
+  // server-sent events
+  sse: '/api/sse',
   // backend
   backendMiddleware: '/api/backend',
   internalWsState: '/api/internal/ws-state',
