@@ -41,6 +41,30 @@ describe('formatSseMessage', () => {
     expect(actualResult).toEqual(expectedResult);
   });
 
+  it('should format a retry-only message', () => {
+    const expectedResult = 'retry: 3000\n\n';
+
+    const actualResult = formatSseMessage({ retry: 3000 });
+
+    expect(actualResult).toEqual(expectedResult);
+  });
+
+  it('should place retry before event and data', () => {
+    const expectedResult = 'retry: 3000\nevent: connected\ndata: {}\n\n';
+
+    const actualResult = formatSseMessage({ event: 'connected', data: '{}', retry: 3000 });
+
+    expect(actualResult).toEqual(expectedResult);
+  });
+
+  it('should round retry down to a non-negative integer', () => {
+    const expectedResult = 'retry: 0\n\n';
+
+    const actualResult = formatSseMessage({ retry: -5.5 });
+
+    expect(actualResult).toEqual(expectedResult);
+  });
+
   it('should keep empty data as an empty data line', () => {
     const expectedResult = 'data: \n\n';
 

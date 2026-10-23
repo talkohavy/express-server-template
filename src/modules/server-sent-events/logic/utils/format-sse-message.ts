@@ -8,6 +8,11 @@ type FormatSseMessageProps = {
   event?: string;
   id?: string;
   comment?: string;
+  /**
+   * Reconnection delay in milliseconds the client should use from now on.
+   * Omitted from the message when not provided, so the client keeps its current delay.
+   */
+  retry?: number;
 };
 
 /**
@@ -18,15 +23,17 @@ type FormatSseMessageProps = {
  * and `id`, which are single-line fields.
  */
 export function formatSseMessage(props: FormatSseMessageProps): string {
-  const { data, event, id, comment } = props;
+  const { data, event, id, comment, retry } = props;
 
   const lines: string[] = [];
 
-  if (comment != null) {
+  if (!isNullish(comment)) {
     const commentLines = comment.split(LINE_BREAK_REGEX);
 
     commentLines.forEach((line) => lines.push(`: ${line}`));
   }
+
+  if (!isNullish(retry)) lines.push(`retry: ${Math.max(0, Math.floor(retry))}`);
 
   if (!isNullish(id)) lines.push(`id: ${id.replace(ALL_LINE_BREAKS_REGEX, '')}`);
 
