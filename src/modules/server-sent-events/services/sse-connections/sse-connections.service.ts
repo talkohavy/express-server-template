@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import {
+  SSE_DRAIN_TIMEOUT_MS,
   SSE_HEARTBEAT_INTERVAL_MS,
+  SSE_MAX_BUFFERED_BYTES,
   SSE_SHUTDOWN_FLUSH_TIMEOUT_MS,
   SSE_SHUTDOWN_RETRY_JITTER_MS,
   SSE_SHUTDOWN_RETRY_MIN_MS,
@@ -10,7 +12,7 @@ import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { Response } from 'express';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseConnection } from '../../types';
-import type { SendToConnectionProps, WriteProps } from './types';
+import type { DestroyConnectionProps, SendToConnectionProps, WriteProps } from './types';
 
 const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
 
@@ -18,8 +20,10 @@ const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
  * Registry of the SSE connections held by this node (in memory only).
  * Writes pre-serialized messages to connections; it knows nothing about Redis.
  *
- * Also keeps connections alive through proxies with a single heartbeat timer (not one per connection),
- * running only while there are connections, and closes every connection on shutdown with a jittered `retry:`.
+ * Also owns connection health:
+ * - a single heartbeat timer (not one per connection), running only while there are connections
+ * - destroying slow clients, so one stalled reader can't grow this node's memory without limit
+ * - closing every connection on shutdown with a jittered `retry:`
  */
 export class SseConnectionsService {
   private readonly connections = new Map<string, SseConnection>();
@@ -32,6 +36,7 @@ export class SseConnectionsService {
       id: randomUUID(),
       response,
       connectedAt: Date.now(),
+      drainTimeout: null,
     };
 
     this.connections.set(connection.id, connection);
@@ -47,9 +52,13 @@ export class SseConnectionsService {
   }
 
   unregister(connectionId: string): void {
-    const wasRemoved = this.connections.delete(connectionId);
+    const connection = this.connections.get(connectionId);
 
-    if (!wasRemoved) return;
+    if (!connection) return;
+
+    this.clearDrainTimeout(connection);
+
+    this.connections.delete(connectionId);
 
     if (this.connections.size === 0) {
       this.stopHeartbeat();
@@ -59,7 +68,7 @@ export class SseConnectionsService {
   }
 
   /**
-   * @returns true if the message was written, false if the connection is unknown or already closed.
+   * @returns true if the message was written, false if the connection is unknown, closed, or was just destroyed for being too slow.
    */
   send(props: SendToConnectionProps): boolean {
     const { connectionId, message } = props;
@@ -111,14 +120,59 @@ export class SseConnectionsService {
     });
   }
 
+  /**
+   * ## **Slow client**
+   *
+   * With SSE, the server keeps an HTTP response open and keeps writing messages to it:
+   * heartbeat pings and broadcasts from sendToAll. Usually the client reads them right away.
+   * A **slow client** is one that can't keep up. It might be on a bad mobile network,
+   * sitting in a frozen browser tab, or behind a stalled proxy.
+   * The server keeps sending, but the data isn't getting through.
+   *
+   *
+   * ## **Backpressure**
+   *
+   * When you call response.write(message), Node doesn't send the bytes over the network immediately.
+   * It puts them in an in-memory buffer for that connection, and the operating system sends them out
+   * as the client accepts them.
+   *
+   * If the client is slow, that buffer keeps growing. Backpressure is the stream telling you,
+   * "the client isn't keeping up, stop sending for now." Node signals it in two ways:
+   *
+   * 1. response.write() returns false instead of true. That means the buffer is above a threshold (about 16KB by default). The data is still queued, not lost.
+   * 2. response.writableLength tells you how many bytes are waiting in that buffer.
+   *
+   * So there are two ways to drop a client:
+   * 1. by size (the buffer passed 1MB)
+   * 2. or by time (it stayed backed up for 30 seconds).
+   *
+   * The time check catches clients that are stuck but receive too little traffic to ever reach 1MB.
+   */
   private write(props: WriteProps): boolean {
     const { connection, message } = props;
     const { response } = connection;
 
+    // Step 1: if the connection is ended or destroyed, do nothing
     if (response.writableEnded || response.destroyed) return false;
 
+    /**
+     * Step 2: Hard limit. if more than 1MB (SSE_MAX_BUFFERED_BYTES) is already waiting for this client,
+     * the server drops the connection right away. This close reason is "slow-client".
+     */
+    if (response.writableLength > SSE_MAX_BUFFERED_BYTES) {
+      this.destroy({ connection, reason: SseCloseReasons.SlowClient });
+
+      return false;
+    }
+
     try {
-      response.write(message);
+      /**
+       * Step 3: Soft signal. if write() returns false, the server starts a timer to see whether the client recovers.
+       * That's what watchDrain does.
+       */
+      const isFlushed = response.write(message);
+
+      if (!isFlushed) this.watchDrain(connection);
 
       return true;
     } catch (error) {
@@ -128,8 +182,62 @@ export class SseConnectionsService {
     }
   }
 
+  /**
+   * Gives a back-pressured connection {@link SSE_DRAIN_TIMEOUT_MS} to drain before destroying it.
+   *
+   * When the buffer empties out again, Node emits a "drain" event on the stream,
+   * meaning "caught up, you can write again".
+   * `watchDrain` uses that event to give the client a grace period. How:
+   *
+   * 1. It starts a timer.
+   * 2. If `drain` fires before the timer runs out, the client caught up, so the timer is cancelled and nothing happens.
+   * 3. If 30 seconds pass with no `drain`, the client is treated as stuck and the connection is destroyed. This close reason is "drain-timeout".
+   * 4. The early return means each connection has at most one timer, no matter how many writes are backed up.
+   */
+  private watchDrain(connection: SseConnection): void {
+    // Step 1: if a drain timeout is already set, do nothing
+    if (connection.drainTimeout) return;
+
+    // Step 2: set a drain timeout
+    connection.drainTimeout = setTimeout(() => {
+      this.destroy({ connection, reason: SseCloseReasons.DrainTimeout });
+    }, SSE_DRAIN_TIMEOUT_MS);
+
+    /**
+     * Step 3: listen for the drain event
+     * When the client has drained the buffer, the drain event is emitted.
+     * We clear the drain timeout to stop the backpressure.
+     */
+    connection.response.once('drain', () => this.clearDrainTimeout(connection));
+  }
+
+  private clearDrainTimeout(connection: SseConnection): void {
+    if (!connection.drainTimeout) return;
+
+    clearTimeout(connection.drainTimeout);
+
+    connection.drainTimeout = null;
+  }
+
+  private destroy(props: DestroyConnectionProps): void {
+    const { connection, reason } = props;
+    const { response } = connection;
+
+    this.logger.warn('Destroying SSE connection', {
+      connectionId: connection.id,
+      reason,
+      bufferedBytes: response.writableLength,
+    });
+
+    this.unregister(connection.id);
+
+    response.destroy();
+  }
+
   private async endWithRetry(connection: SseConnection): Promise<void> {
     const { response } = connection;
+
+    this.clearDrainTimeout(connection);
 
     if (response.writableEnded || response.destroyed) return;
 

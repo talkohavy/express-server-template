@@ -1,3 +1,4 @@
+import type { SseCloseReasonValues } from '../../logic/constants';
 import type { SseConnection } from '../../types';
 
 export type SendToConnectionProps = {
@@ -8,4 +9,9 @@ export type SendToConnectionProps = {
 export type WriteProps = {
   connection: SseConnection;
   message: string;
+};
+
+export type DestroyConnectionProps = {
+  connection: SseConnection;
+  reason: SseCloseReasonValues;
 };

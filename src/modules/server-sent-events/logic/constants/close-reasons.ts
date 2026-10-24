@@ -1,4 +1,6 @@
 export const SseCloseReasons = {
+  SlowClient: 'slow-client',
+  DrainTimeout: 'drain-timeout',
   Shutdown: 'shutdown',
 } as const;
 
