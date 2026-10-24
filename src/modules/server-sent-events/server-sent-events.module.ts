@@ -1,5 +1,7 @@
-import { ConfigKeys } from '@src/plugins/config-service';
+import { ConfigKeys, type JwtConfig } from '@src/plugins/config-service';
+import { TokenVerificationService } from '../authentication/services/token-verification';
 import { ServerSentEventsController } from './controllers';
+import { SseAuthenticationMiddleware } from './middleware/sse-authentication.middleware';
 import { ServerSentEventsService, SseConnectionsService } from './services';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
@@ -51,8 +53,14 @@ export class ServerSentEventsModule implements ModuleFactory {
   }
 
   private attachControllers(): void {
+    const jwtConfig = this.app.configService.get<JwtConfig>(ConfigKeys.Jwt);
+
+    const tokenVerificationService = new TokenVerificationService(jwtConfig);
+
+    const sseAuthenticationMiddleware = new SseAuthenticationMiddleware(this.app, tokenVerificationService);
     const serverSentEventsController = new ServerSentEventsController(this.app, this.sseConnectionsService);
 
+    sseAuthenticationMiddleware.use();
     serverSentEventsController.registerRoutes();
   }
 
