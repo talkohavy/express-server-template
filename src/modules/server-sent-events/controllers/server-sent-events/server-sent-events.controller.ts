@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
-import { TooManyRequestsError } from '@src/core/errors';
-import { SSE_MAX_CONNECTIONS_PER_USER, SSE_RETRY_MS, SseEventNames } from '../../logic/constants';
+import { ServiceUnavailableError, TooManyRequestsError } from '@src/core/errors';
+import {
+  SSE_MAX_CONNECTIONS_PER_NODE,
+  SSE_MAX_CONNECTIONS_PER_USER,
+  SSE_RETRY_MS,
+  SseEventNames,
+} from '../../logic/constants';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { Application, Request, Response } from 'express';
 import type { UserToken } from '@src/common/types';
@@ -27,15 +32,24 @@ export class ServerSentEventsController implements ControllerFactory {
 
       const socketId = randomUUID();
 
-      // Step 1: Acquire a lease to prevent too many connections
+      // Step 1: If this node is full, reject before touching Redis
+      const connectionsCount = this.sseConnectionsService.getConnectionsCount();
+
+      if (connectionsCount >= SSE_MAX_CONNECTIONS_PER_NODE) {
+        throw new ServiceUnavailableError(
+          `Reached the limit of ${SSE_MAX_CONNECTIONS_PER_NODE} SSE connections per node`,
+        );
+      }
+
+      // Step 2: Acquire a lease to prevent too many connections
       const isLeaseAcquired = await this.sseConnectionLimiterService.acquire({ userId, socketId });
 
-      // Step 2: If the lease was not acquired, throw an error
+      // Step 3: If the lease was not acquired, throw an error
       if (!isLeaseAcquired) {
         throw new TooManyRequestsError(`Reached the limit of ${SSE_MAX_CONNECTIONS_PER_USER} SSE connections per user`);
       }
 
-      // Step 3: The client may have left while the lease was being acquired. Its 'close' already fired, so release here.
+      // Step 4: The client may have left while the lease was being acquired. Its 'close' already fired, so release here.
       if (req.socket.destroyed) {
         await this.sseConnectionLimiterService.release({ userId, socketId });
 

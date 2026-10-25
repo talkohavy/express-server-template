@@ -21,7 +21,7 @@ describe('SseConnectionLimiterService', () => {
     socketIdsByUserId = new Map();
 
     const sseConnectionsService = {
-      getsocketIdsByUserId: jest.fn(() => socketIdsByUserId),
+      getSocketIdsByUserId: jest.fn(() => socketIdsByUserId),
     };
 
     service = new SseConnectionLimiterService(
@@ -68,12 +68,12 @@ describe('SseConnectionLimiterService', () => {
       expect(actualResult).toBe(false);
     });
 
-    it('should allow the connection and log when Redis fails', async () => {
+    it('should reject the connection and log when Redis fails', async () => {
       redisClient.sendCommand.mockRejectedValue(new Error('connection lost'));
 
       const actualResult = await service.acquire({ userId: 'user-1', socketId: 'connection-1' });
 
-      expect(actualResult).toBe(true);
+      expect(actualResult).toBe(false);
       expect(logger.error).toHaveBeenCalled();
     });
   });

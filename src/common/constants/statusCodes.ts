@@ -3,6 +3,7 @@ import {
   ForbiddenError,
   InternalServerError,
   NotFoundError,
+  ServiceUnavailableError,
   TooManyRequestsError,
   UnauthorizedError,
   type HttpException,
@@ -34,4 +35,5 @@ export const StatusCodeToError: Partial<Record<StatusCodeValues, new (...args: a
   [StatusCodes.NOT_FOUND]: NotFoundError,
   [StatusCodes.TOO_MANY_REQUESTS]: TooManyRequestsError,
   [StatusCodes.INTERNAL_ERROR]: InternalServerError,
+  [StatusCodes.SERVICE_UNAVAILABLE]: ServiceUnavailableError,
 } as const;
