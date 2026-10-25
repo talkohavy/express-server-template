@@ -1,7 +1,8 @@
 import type { Response } from 'express';
 
 export type SseConnection = {
-  id: string;
+  socketId: string;
+  userId: string;
   response: Response;
   connectedAt: number;
   /**

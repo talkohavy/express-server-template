@@ -2,7 +2,7 @@ import { ConfigKeys, type JwtConfig } from '@src/plugins/config-service';
 import { TokenVerificationService } from '../authentication/services/token-verification';
 import { ServerSentEventsController } from './controllers';
 import { SseAuthenticationMiddleware } from './middleware/sse-authentication.middleware';
-import { ServerSentEventsService, SseConnectionsService } from './services';
+import { ServerSentEventsService, SseConnectionLimiterService, SseConnectionsService } from './services';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
 
@@ -14,6 +14,7 @@ import type { ModuleFactory } from '@src/lib/lucky-server';
  */
 export class ServerSentEventsModule implements ModuleFactory {
   private sseConnectionsService!: SseConnectionsService;
+  private sseConnectionLimiterService!: SseConnectionLimiterService;
   private serverSentEventsService!: ServerSentEventsService;
 
   constructor(private readonly app: Application) {}
@@ -23,6 +24,11 @@ export class ServerSentEventsModule implements ModuleFactory {
     const { pub: redisPubClient, sub: redisSubClient } = redis;
 
     this.sseConnectionsService = new SseConnectionsService(logger);
+    this.sseConnectionLimiterService = new SseConnectionLimiterService(
+      logger,
+      this.sseConnectionsService,
+      redisPubClient,
+    );
     this.serverSentEventsService = new ServerSentEventsService(
       logger,
       this.sseConnectionsService,
@@ -31,6 +37,8 @@ export class ServerSentEventsModule implements ModuleFactory {
     );
 
     await this.serverSentEventsService.subscribeToEvents();
+
+    this.sseConnectionLimiterService.start();
 
     // SSE always attaches routes directly - clients connect to this endpoint
     // without going through the BFF (persistent connections don't proxy well)
@@ -49,6 +57,9 @@ export class ServerSentEventsModule implements ModuleFactory {
   async cleanup(): Promise<void> {
     await this.serverSentEventsService.cleanup();
 
+    this.sseConnectionLimiterService.stop();
+
+    // Each closing connection releases its own lease, so this must run while Redis is still connected.
     await this.sseConnectionsService.closeAllConnections();
   }
 
@@ -58,7 +69,11 @@ export class ServerSentEventsModule implements ModuleFactory {
     const tokenVerificationService = new TokenVerificationService(jwtConfig);
 
     const sseAuthenticationMiddleware = new SseAuthenticationMiddleware(this.app, tokenVerificationService);
-    const serverSentEventsController = new ServerSentEventsController(this.app, this.sseConnectionsService);
+    const serverSentEventsController = new ServerSentEventsController(
+      this.app,
+      this.sseConnectionsService,
+      this.sseConnectionLimiterService,
+    );
 
     sseAuthenticationMiddleware.use();
     serverSentEventsController.registerRoutes();
@@ -67,6 +82,7 @@ export class ServerSentEventsModule implements ModuleFactory {
   get services() {
     return {
       sseConnectionsService: this.sseConnectionsService,
+      sseConnectionLimiterService: this.sseConnectionLimiterService,
       serverSentEventsService: this.serverSentEventsService,
     };
   }

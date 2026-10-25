@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   SSE_DRAIN_TIMEOUT_MS,
   SSE_HEARTBEAT_INTERVAL_MS,
@@ -9,10 +8,9 @@ import {
   SseCloseReasons,
 } from '../../logic/constants';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
-import type { Response } from 'express';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseConnection } from '../../types';
-import type { DestroyConnectionProps, SendToConnectionProps, WriteProps } from './types';
+import type { DestroyConnectionProps, RegisterConnectionProps, SendToConnectionProps, WriteProps } from './types';
 
 const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
 
@@ -27,53 +25,64 @@ const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
  */
 export class SseConnectionsService {
   private readonly connections = new Map<string, SseConnection>();
+  /**
+   * A user can hold several connections at once (one per open tab or device).
+   * Only users with at least one connection on this node have an entry.
+   */
+  private readonly socketIdsByUserId = new Map<string, Set<string>>();
   private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor(private readonly logger: LoggerService) {}
 
-  register(response: Response): SseConnection {
+  register(props: RegisterConnectionProps): SseConnection {
+    const { socketId, userId, response } = props;
+
     const connection: SseConnection = {
-      id: randomUUID(),
+      socketId,
+      userId,
       response,
       connectedAt: Date.now(),
       drainTimeout: null,
     };
 
-    this.connections.set(connection.id, connection);
+    this.connections.set(socketId, connection);
+    this.addToUserIndex(connection);
 
     this.startHeartbeat();
 
     this.logger.debug('SSE connection registered', {
-      connectionId: connection.id,
+      socketId,
+      userId,
       connectionsCount: this.connections.size,
     });
 
     return connection;
   }
 
-  unregister(connectionId: string): void {
-    const connection = this.connections.get(connectionId);
+  unregister(socketId: string): void {
+    const connection = this.connections.get(socketId);
 
     if (!connection) return;
 
     this.clearDrainTimeout(connection);
 
-    this.connections.delete(connectionId);
+    this.connections.delete(socketId);
+    this.removeFromUserIndex(connection);
 
     if (this.connections.size === 0) {
       this.stopHeartbeat();
     }
 
-    this.logger.debug('SSE connection unregistered', { connectionId, connectionsCount: this.connections.size });
+    this.logger.debug('SSE connection unregistered', { socketId, connectionsCount: this.connections.size });
   }
 
   /**
    * @returns true if the message was written, false if the connection is unknown, closed, or was just destroyed for being too slow.
    */
   send(props: SendToConnectionProps): boolean {
-    const { connectionId, message } = props;
+    const { socketId, message } = props;
 
-    const connection = this.connections.get(connectionId);
+    const connection = this.connections.get(socketId);
 
     if (!connection) return false;
 
@@ -93,6 +102,20 @@ export class SseConnectionsService {
   }
 
   /**
+   * Counts this node's connections only.
+   * The same user may hold more connections on other nodes.
+   */
+  getUserConnectionsCount(userId: string): number {
+    const userSocketIds = this.socketIdsByUserId.get(userId);
+
+    return userSocketIds?.size ?? 0;
+  }
+
+  getSocketIdsByUserId(): ReadonlyMap<string, ReadonlySet<string>> {
+    return this.socketIdsByUserId;
+  }
+
+  /**
    * Call on shutdown. Stops the heartbeat, tells every client to reconnect after a random delay,
    * and ends every response. Resolves once all final messages are flushed, or after a timeout.
    */
@@ -102,6 +125,7 @@ export class SseConnectionsService {
     const connectionsArr = Array.from(this.connections.values());
 
     this.connections.clear();
+    this.socketIdsByUserId.clear();
 
     const allConnectionsEndedPromise = Promise.all(connectionsArr.map((connection) => this.endWithRetry(connection)));
 
@@ -150,7 +174,7 @@ export class SseConnectionsService {
    */
   private write(props: WriteProps): boolean {
     const { connection, message } = props;
-    const { response } = connection;
+    const { socketId, response } = connection;
 
     // Step 1: if the connection is ended or destroyed, do nothing
     if (response.writableEnded || response.destroyed) return false;
@@ -176,7 +200,7 @@ export class SseConnectionsService {
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to write SSE message', { connectionId: connection.id, error });
+      this.logger.error('Failed to write SSE message', { socketId, error });
 
       return false;
     }
@@ -221,21 +245,21 @@ export class SseConnectionsService {
 
   private destroy(props: DestroyConnectionProps): void {
     const { connection, reason } = props;
-    const { response } = connection;
+    const { socketId, response } = connection;
 
     this.logger.warn('Destroying SSE connection', {
-      connectionId: connection.id,
+      socketId,
       reason,
       bufferedBytes: response.writableLength,
     });
 
-    this.unregister(connection.id);
+    this.unregister(socketId);
 
     response.destroy();
   }
 
   private async endWithRetry(connection: SseConnection): Promise<void> {
-    const { response } = connection;
+    const { socketId, response } = connection;
 
     this.clearDrainTimeout(connection);
 
@@ -249,7 +273,32 @@ export class SseConnectionsService {
         response.end(retryMessage, () => resolve());
       });
     } catch (error) {
-      this.logger.error('Failed to end SSE connection', { connectionId: connection.id, error });
+      this.logger.error('Failed to end SSE connection', { socketId, error });
+    }
+  }
+
+  private addToUserIndex(connection: SseConnection): void {
+    const { socketId, userId } = connection;
+
+    const userSocketIds = this.socketIdsByUserId.get(userId) ?? new Set<string>();
+
+    userSocketIds.add(socketId);
+
+    this.socketIdsByUserId.set(userId, userSocketIds);
+  }
+
+  private removeFromUserIndex(connection: SseConnection): void {
+    const { socketId, userId } = connection;
+
+    const userSocketIds = this.socketIdsByUserId.get(userId);
+
+    if (!userSocketIds) return;
+
+    userSocketIds.delete(socketId);
+
+    // Drop empty sets, so the index doesn't keep an entry for every user that has ever connected.
+    if (userSocketIds.size === 0) {
+      this.socketIdsByUserId.delete(userId);
     }
   }
 

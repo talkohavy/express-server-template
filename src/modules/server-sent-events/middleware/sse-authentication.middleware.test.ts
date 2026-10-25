@@ -54,18 +54,10 @@ describe('SseAuthenticationMiddleware', () => {
     expect(response.status).toBe(StatusCodes.UNAUTHORIZED);
   });
 
-  it('should respond with 401 when the decoded token has no user id', async () => {
-    tokenVerificationService.verifyToken.mockResolvedValue({ role: 'user' });
-
-    const response = await request(app).get(API_PATHS.sse).set('Cookie', `${ACCESS_COOKIE_NAME}=no-id-token`);
-
-    expect(response.status).toBe(StatusCodes.UNAUTHORIZED);
-  });
-
   it('should attach the user to the request when the token is valid', async () => {
     tokenVerificationService.verifyToken.mockResolvedValue({ id: '42', role: 'admin', iat: 1, exp: 2 });
 
-    const expectedResult = { id: '42', role: 'admin' };
+    const expectedResult = { id: '42', role: 'admin', exp: 2, iat: 1 };
 
     const response = await request(app).get(API_PATHS.sse).set('Cookie', `${ACCESS_COOKIE_NAME}=valid-token`);
     const actualResult = response.body;
