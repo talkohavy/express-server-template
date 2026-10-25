@@ -1,13 +1,14 @@
-import { SSE_EVENTS_CHANNEL } from '../../logic/constants';
+import { SSE_EVENTS_CHANNEL } from '@src/core/services/sse-publisher';
 import { ServerSentEventsService } from './server-sent-events.service';
 import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
+import type { SsePublisherService } from '@src/core/services/sse-publisher';
 import type { SseChannelSubscriberService } from '../sse-channel-subscriber';
 import type { SseConnectionsService } from '../sse-connections';
 
 describe('ServerSentEventsService', () => {
   let service: ServerSentEventsService;
-  let redisPubClient: { publish: jest.Mock };
+  let ssePublisherService: { broadcast: jest.Mock };
   let redisSubClient: { subscribe: jest.Mock; unsubscribe: jest.Mock };
   let sseConnectionsService: { sendToAll: jest.Mock; sendToUser: jest.Mock };
   let sseChannelSubscriberService: { subscribe: jest.Mock; unsubscribe: jest.Mock; unsubscribeAll: jest.Mock };
@@ -22,7 +23,7 @@ describe('ServerSentEventsService', () => {
   }
 
   beforeEach(() => {
-    redisPubClient = { publish: jest.fn().mockResolvedValue(1) };
+    ssePublisherService = { broadcast: jest.fn().mockResolvedValue(1) };
     redisSubClient = {
       subscribe: jest.fn().mockResolvedValue(undefined),
       unsubscribe: jest.fn().mockResolvedValue(undefined),
@@ -39,36 +40,13 @@ describe('ServerSentEventsService', () => {
       logger as unknown as LoggerService,
       sseConnectionsService as unknown as SseConnectionsService,
       sseChannelSubscriberService as unknown as SseChannelSubscriberService,
-      redisPubClient as unknown as RedisClientType,
+      ssePublisherService as unknown as SsePublisherService,
       redisSubClient as unknown as RedisClientType,
     );
   });
 
   afterEach(() => {
     service.stopSimulation();
-  });
-
-  describe('broadcast', () => {
-    it('should publish the envelope to the SSE channel', async () => {
-      const expectedResult = { event: 'update', data: { a: 1 } };
-
-      await service.broadcast({ event: 'update', data: { a: 1 } });
-
-      const [channel, payload] = redisPubClient.publish.mock.calls[0];
-      const actualResult = JSON.parse(payload);
-
-      expect(channel).toBe(SSE_EVENTS_CHANNEL);
-      expect(actualResult).toEqual(expectedResult);
-    });
-
-    it('should default the event name to "message"', async () => {
-      await service.broadcast({ data: 'hello' });
-
-      const [, payload] = redisPubClient.publish.mock.calls[0];
-      const actualResult = JSON.parse(payload).event;
-
-      expect(actualResult).toBe('message');
-    });
   });
 
   describe('forwarding Redis messages', () => {
@@ -165,7 +143,7 @@ describe('ServerSentEventsService', () => {
       service.stopSimulation();
       jest.advanceTimersByTime(5000);
 
-      expect(redisPubClient.publish).toHaveBeenCalledTimes(1);
+      expect(ssePublisherService.broadcast).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -191,7 +169,7 @@ describe('ServerSentEventsService', () => {
       await service.cleanup();
       jest.advanceTimersByTime(5000);
 
-      expect(redisPubClient.publish).not.toHaveBeenCalled();
+      expect(ssePublisherService.broadcast).not.toHaveBeenCalled();
       jest.useRealTimers();
     });
   });

@@ -33,6 +33,7 @@ import { metricsPlugin } from './plugins/metrics.plugin';
 import { postgresPlugin } from './plugins/postgres.plugin';
 import { redisPlugin } from './plugins/redis.plugin';
 import { socketIOPlugin } from './plugins/socket.io.plugin';
+import { ssePublisherPlugin } from './plugins/sse-publisher.plugin';
 import { topicPublisherPlugin } from './plugins/topic-publisher.plugin';
 import { topicSubscriberPlugin } from './plugins/topic-subscriber.plugin';
 import { wsPlugin } from './plugins/ws.plugin';
@@ -56,6 +57,7 @@ export async function buildApp(app: Application) {
     httpServerPlugin,
     topicPublisherPlugin,
     topicSubscriberPlugin,
+    ssePublisherPlugin,
     isSocketIOModuleEnabled && socketIOPlugin,
     isWsModuleEnabled && wsPlugin,
   ]);

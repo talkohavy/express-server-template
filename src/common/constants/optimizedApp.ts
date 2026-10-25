@@ -34,4 +34,5 @@ export const optimizedApp: OptimizedApp = {
   wsApp: null as any,
   topicSubscriber: null as any,
   topicPublisher: null as any,
+  ssePublisher: null as any,
 };

@@ -1,17 +1,17 @@
 import { isObject } from '@src/common/utils/isObject';
 import { parseJson } from '@src/common/utils/parseJson';
-import { SSE_EVENTS_CHANNEL, SSE_SIMULATION_INTERVAL_MS, SseEventNames } from '../../logic/constants';
+import { getUserEventsChannel, SSE_EVENTS_CHANNEL } from '@src/core/services/sse-publisher';
+import { SSE_SIMULATION_INTERVAL_MS } from '../../logic/constants';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
-import { getUserEventsChannel } from '../../logic/utils/get-user-events-channel';
 import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
-import type { SseEnvelope } from '../../types';
+import type { SseEnvelope, SsePublisherService } from '@src/core/services/sse-publisher';
 import type { SseChannelSubscriberService } from '../sse-channel-subscriber';
 import type { SseConnectionsService } from '../sse-connections';
-import type { BroadcastProps, ForwardEnvelopeToUserProps } from './types';
+import type { ForwardEnvelopeToUserProps } from './types';
 
 /**
- * Bridges Redis pub/sub and this node's SSE connections.
+ * Bridges Redis pub/sub and this node's SSE connections (the receiving side; publishing is SsePublisherService).
  * - Broadcast: every node subscribes to the same channel, so a message published from any node reaches every client.
  * - Per user: a node subscribes to a user's channel only while it holds a connection of that user.
  */
@@ -22,7 +22,7 @@ export class ServerSentEventsService {
     private readonly logger: LoggerService,
     private readonly sseConnectionsService: SseConnectionsService,
     private readonly sseChannelSubscriberService: SseChannelSubscriberService,
-    private readonly redisPubClient: RedisClientType,
+    private readonly ssePublisherService: SsePublisherService,
     private readonly redisSubClient: RedisClientType,
   ) {}
 
@@ -70,20 +70,6 @@ export class ServerSentEventsService {
   }
 
   /**
-   * @returns The number of Redis subscribers (nodes) that received the message.
-   */
-  async broadcast(props: BroadcastProps): Promise<number> {
-    const { event = SseEventNames.Message, data } = props;
-
-    const envelope: SseEnvelope = { event, data };
-    const envelopeStringified = JSON.stringify(envelope);
-
-    const subscribersCount = await this.redisPubClient.publish(SSE_EVENTS_CHANNEL, envelopeStringified);
-
-    return subscribersCount;
-  }
-
-  /**
    * Dev-only helper: broadcasts the current time every second.
    */
   startSimulation(): void {
@@ -91,7 +77,7 @@ export class ServerSentEventsService {
 
     this.simulationInterval = setInterval(async () => {
       try {
-        await this.broadcast({ data: { time: new Date().toISOString() } });
+        await this.ssePublisherService.broadcast({ data: { time: new Date().toISOString() } });
       } catch (error) {
         this.logger.error('SSE simulation failed to broadcast', { error });
       }

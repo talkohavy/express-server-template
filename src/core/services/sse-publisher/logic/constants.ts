@@ -1,3 +1,6 @@
+/**
+ * Every node with SSE connections subscribes to this channel. A message published to it reaches every client.
+ */
 export const SSE_EVENTS_CHANNEL = 'sse:events';
 
 /**
@@ -6,3 +9,8 @@ export const SSE_EVENTS_CHANNEL = 'sse:events';
  * so a message for a user reaches only the nodes that can deliver it.
  */
 export const SSE_USER_EVENTS_CHANNEL_PREFIX = 'sse:events:user:';
+
+/**
+ * The SSE spec's default event name: `EventSource.onmessage` receives it.
+ */
+export const SSE_DEFAULT_EVENT_NAME = 'message';

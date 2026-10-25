@@ -10,11 +10,3 @@ export type SseConnection = {
    */
   drainTimeout: NodeJS.Timeout | null;
 };
-
-/**
- * The envelope published to Redis and fanned out to SSE clients.
- */
-export type SseEnvelope = {
-  event: string;
-  data: unknown;
-};
