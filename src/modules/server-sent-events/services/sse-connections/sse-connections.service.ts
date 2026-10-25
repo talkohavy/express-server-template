@@ -10,7 +10,13 @@ import {
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseConnection } from '../../types';
-import type { DestroyConnectionProps, RegisterConnectionProps, SendToConnectionProps, WriteProps } from './types';
+import type {
+  DestroyConnectionProps,
+  RegisterConnectionProps,
+  SendToConnectionProps,
+  SendToUserProps,
+  WriteProps,
+} from './types';
 
 const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
 
@@ -89,6 +95,20 @@ export class SseConnectionsService {
     const isWritten = this.write({ connection, message });
 
     return isWritten;
+  }
+
+  /**
+   * Writes to every connection of the user on this node.
+   * A no-op if the user has none here.
+   */
+  sendToUser(props: SendToUserProps): void {
+    const { userId, message } = props;
+
+    const userSocketIds = this.socketIdsByUserId.get(userId);
+
+    userSocketIds?.forEach((socketId) => {
+      this.send({ socketId, message });
+    });
   }
 
   sendToAll(message: string): void {

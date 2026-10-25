@@ -3,6 +3,7 @@ import request from 'supertest';
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { SSE_MAX_CONNECTIONS_PER_NODE } from '../../logic/constants';
 import { ServerSentEventsController } from './server-sent-events.controller';
+import type { ServerSentEventsService } from '../../services/server-sent-events';
 import type { SseConnectionLimiterService } from '../../services/sse-connection-limiter';
 import type { SseConnectionsService } from '../../services/sse-connections';
 
@@ -10,6 +11,7 @@ describe('ServerSentEventsController', () => {
   let app: Application;
   let sseConnectionsService: { getConnectionsCount: jest.Mock };
   let sseConnectionLimiterService: { acquire: jest.Mock; release: jest.Mock };
+  let serverSentEventsService: { subscribeToUserEvents: jest.Mock; unsubscribeFromUserEvents: jest.Mock };
 
   beforeEach(() => {
     app = express() as unknown as Application;
@@ -20,12 +22,17 @@ describe('ServerSentEventsController', () => {
     });
 
     sseConnectionsService = { getConnectionsCount: jest.fn().mockReturnValue(0) };
-    sseConnectionLimiterService = { acquire: jest.fn(), release: jest.fn() };
+    sseConnectionLimiterService = { acquire: jest.fn().mockResolvedValue(true), release: jest.fn() };
+    serverSentEventsService = {
+      subscribeToUserEvents: jest.fn().mockResolvedValue(true),
+      unsubscribeFromUserEvents: jest.fn(),
+    };
 
     const controller = new ServerSentEventsController(
       app,
       sseConnectionsService as unknown as SseConnectionsService,
       sseConnectionLimiterService as unknown as SseConnectionLimiterService,
+      serverSentEventsService as unknown as ServerSentEventsService,
     );
     controller.registerRoutes();
 
@@ -50,6 +57,19 @@ describe('ServerSentEventsController', () => {
       const response = await request(app).get(API_PATHS.sse);
 
       expect(response.status).toBe(StatusCodes.TOO_MANY_REQUESTS);
+    });
+
+    it('should respond with 503 and release what it took when subscribing to user events fails', async () => {
+      serverSentEventsService.subscribeToUserEvents.mockResolvedValue(false);
+
+      const response = await request(app).get(API_PATHS.sse);
+
+      expect(response.status).toBe(StatusCodes.SERVICE_UNAVAILABLE);
+      expect(sseConnectionLimiterService.release).toHaveBeenCalledWith({
+        userId: 'user-1',
+        socketId: expect.any(String),
+      });
+      expect(serverSentEventsService.unsubscribeFromUserEvents).toHaveBeenCalledWith('user-1');
     });
   });
 });

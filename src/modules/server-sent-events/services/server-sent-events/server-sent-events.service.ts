@@ -2,15 +2,18 @@ import { isObject } from '@src/common/utils/isObject';
 import { parseJson } from '@src/common/utils/parseJson';
 import { SSE_EVENTS_CHANNEL, SSE_SIMULATION_INTERVAL_MS, SseEventNames } from '../../logic/constants';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
+import { getUserEventsChannel } from '../../logic/utils/get-user-events-channel';
 import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseEnvelope } from '../../types';
+import type { SseChannelSubscriberService } from '../sse-channel-subscriber';
 import type { SseConnectionsService } from '../sse-connections';
-import type { BroadcastProps } from './types';
+import type { BroadcastProps, ForwardEnvelopeToUserProps } from './types';
 
 /**
  * Bridges Redis pub/sub and this node's SSE connections.
- * Every node subscribes to the same channel, so a message published from any node reaches every client.
+ * - Broadcast: every node subscribes to the same channel, so a message published from any node reaches every client.
+ * - Per user: a node subscribes to a user's channel only while it holds a connection of that user.
  */
 export class ServerSentEventsService {
   private simulationInterval: NodeJS.Timeout | null = null;
@@ -18,6 +21,7 @@ export class ServerSentEventsService {
   constructor(
     private readonly logger: LoggerService,
     private readonly sseConnectionsService: SseConnectionsService,
+    private readonly sseChannelSubscriberService: SseChannelSubscriberService,
     private readonly redisPubClient: RedisClientType,
     private readonly redisSubClient: RedisClientType,
   ) {}
@@ -29,6 +33,30 @@ export class ServerSentEventsService {
   }
 
   /**
+   * Call when a connection of the user opens on this node. Reference-counted per user.
+   * @returns true once this node receives the user's messages, false if subscribing failed.
+   */
+  async subscribeToUserEvents(userId: string): Promise<boolean> {
+    const userEventsChannel = getUserEventsChannel(userId);
+
+    const isSubscribed = await this.sseChannelSubscriberService.subscribe({
+      channel: userEventsChannel,
+      listener: (payload) => this.forwardEnvelopeToUser({ userId, payload }),
+    });
+
+    return isSubscribed;
+  }
+
+  /**
+   * Call when a connection of the user closes on this node.
+   */
+  async unsubscribeFromUserEvents(userId: string): Promise<void> {
+    const channel = getUserEventsChannel(userId);
+
+    await this.sseChannelSubscriberService.unsubscribe(channel);
+  }
+
+  /**
    * Call on shutdown, before closing connections, so no new messages arrive while they are being closed.
    */
   async cleanup(): Promise<void> {
@@ -37,6 +65,8 @@ export class ServerSentEventsService {
     await this.redisSubClient.unsubscribe(SSE_EVENTS_CHANNEL);
 
     this.logger.info(`Unsubscribed from Redis pub/sub channel: ${SSE_EVENTS_CHANNEL}`);
+
+    await this.sseChannelSubscriberService.unsubscribeAll();
   }
 
   /**
@@ -77,12 +107,33 @@ export class ServerSentEventsService {
   }
 
   private forwardEnvelopeToAllConnections(payload: string): void {
+    const message = this.envelopeToSseMessage(payload);
+
+    if (!message) return;
+
+    this.sseConnectionsService.sendToAll(message);
+  }
+
+  private forwardEnvelopeToUser(props: ForwardEnvelopeToUserProps): void {
+    const { userId, payload } = props;
+
+    const message = this.envelopeToSseMessage(payload);
+
+    if (!message) return;
+
+    this.sseConnectionsService.sendToUser({ userId, message });
+  }
+
+  /**
+   * @returns The formatted SSE message, or null (logged) if the payload isn't a valid envelope.
+   */
+  private envelopeToSseMessage(payload: string): string | null {
     const envelope = parseJson<SseEnvelope>(payload);
 
     if (!this.isValidEnvelope(envelope)) {
-      this.logger.error('SSE pub/sub: invalid envelope received', { channel: SSE_EVENTS_CHANNEL });
+      this.logger.error('SSE pub/sub: invalid envelope received', { payload });
 
-      return;
+      return null;
     }
 
     const { event, data } = envelope;
@@ -90,7 +141,7 @@ export class ServerSentEventsService {
     const dataStringified = JSON.stringify(data);
     const message = formatSseMessage({ event, data: dataStringified });
 
-    this.sseConnectionsService.sendToAll(message);
+    return message;
   }
 
   private isValidEnvelope(envelope: unknown): envelope is SseEnvelope {

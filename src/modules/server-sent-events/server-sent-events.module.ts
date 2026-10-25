@@ -2,7 +2,12 @@ import { ConfigKeys, type JwtConfig } from '@src/plugins/config-service';
 import { TokenVerificationService } from '../authentication/services/token-verification';
 import { ServerSentEventsController } from './controllers';
 import { SseAuthenticationMiddleware } from './middleware/sse-authentication.middleware';
-import { ServerSentEventsService, SseConnectionLimiterService, SseConnectionsService } from './services';
+import {
+  ServerSentEventsService,
+  SseChannelSubscriberService,
+  SseConnectionLimiterService,
+  SseConnectionsService,
+} from './services';
 import type { Application } from 'express';
 import type { ModuleFactory } from '@src/lib/lucky-server';
 
@@ -29,9 +34,11 @@ export class ServerSentEventsModule implements ModuleFactory {
       this.sseConnectionsService,
       redisPubClient,
     );
+    const sseChannelSubscriberService = new SseChannelSubscriberService(logger, redisSubClient);
     this.serverSentEventsService = new ServerSentEventsService(
       logger,
       this.sseConnectionsService,
+      sseChannelSubscriberService,
       redisPubClient,
       redisSubClient,
     );
@@ -73,6 +80,7 @@ export class ServerSentEventsModule implements ModuleFactory {
       this.app,
       this.sseConnectionsService,
       this.sseConnectionLimiterService,
+      this.serverSentEventsService,
     );
 
     sseAuthenticationMiddleware.use();

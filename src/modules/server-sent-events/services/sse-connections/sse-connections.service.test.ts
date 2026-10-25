@@ -180,6 +180,32 @@ describe('SseConnectionsService', () => {
     });
   });
 
+  describe('sendToUser', () => {
+    it("should write to every connection of the user and to no one else's", () => {
+      const firstTab = createResponseMock();
+      const secondTab = createResponseMock();
+      const otherUserResponse = createResponseMock();
+      service.register({ socketId: randomUUID(), response: firstTab, userId: USER_ID });
+      service.register({ socketId: randomUUID(), response: secondTab, userId: USER_ID });
+      service.register({ socketId: randomUUID(), response: otherUserResponse, userId: OTHER_USER_ID });
+
+      service.sendToUser({ userId: USER_ID, message: 'data: x\n\n' });
+
+      expect(firstTab.write).toHaveBeenCalledWith('data: x\n\n');
+      expect(secondTab.write).toHaveBeenCalledWith('data: x\n\n');
+      expect(otherUserResponse.write).not.toHaveBeenCalled();
+    });
+
+    it('should be a no-op for a user with no connections on this node', () => {
+      const response = createResponseMock();
+      service.register({ socketId: randomUUID(), response, userId: USER_ID });
+
+      service.sendToUser({ userId: 'unknown-user', message: 'data: x\n\n' });
+
+      expect(response.write).not.toHaveBeenCalled();
+    });
+  });
+
   describe('sendToAll', () => {
     it('should write the message to every connection', () => {
       const responses = [createResponseMock(), createResponseMock(), createResponseMock()];

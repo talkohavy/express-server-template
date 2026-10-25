@@ -5,3 +5,8 @@ export type BroadcastProps = {
   event?: string;
   data: unknown;
 };
+
+export type ForwardEnvelopeToUserProps = {
+  userId: string;
+  payload: string;
+};

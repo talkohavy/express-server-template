@@ -13,6 +13,11 @@ export type SendToConnectionProps = {
   message: string;
 };
 
+export type SendToUserProps = {
+  userId: string;
+  message: string;
+};
+
 export type WriteProps = {
   connection: SseConnection;
   message: string;
