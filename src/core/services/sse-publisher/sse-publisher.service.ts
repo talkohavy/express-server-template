@@ -1,7 +1,7 @@
 import { SSE_DEFAULT_EVENT_NAME, SSE_EVENTS_CHANNEL } from './logic/constants';
-import { getUserEventsChannel } from './logic/utils';
+import { getTopicEventsChannel, getUserEventsChannel } from './logic/utils';
 import type { RedisClientType } from 'redis';
-import type { BroadcastProps, PublishProps, SendToUserProps, SseEnvelope } from './types';
+import type { BroadcastProps, PublishProps, SendToTopicProps, SendToUserProps, SseEnvelope } from './types';
 
 /**
  * Publishes SSE events through Redis pub/sub.
@@ -23,6 +23,21 @@ export class SsePublisherService {
     const userEventsChannel = getUserEventsChannel(userId);
 
     const receivingNodesCount = await this.publish({ channel: userEventsChannel, event, data });
+
+    return receivingNodesCount;
+  }
+
+  /**
+   * Sends to every open SSE connection in the topic, on any node.
+   * Users get into a topic through `SseTopicsService` (`app.sseTopics`).
+   * @returns The number of nodes that received it. 0 means no one in the topic has an open SSE connection.
+   */
+  async sendToTopic(props: SendToTopicProps): Promise<number> {
+    const { topic, event = SSE_DEFAULT_EVENT_NAME, data } = props;
+
+    const topicEventsChannel = getTopicEventsChannel(topic);
+
+    const receivingNodesCount = await this.publish({ channel: topicEventsChannel, event, data });
 
     return receivingNodesCount;
   }

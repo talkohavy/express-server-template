@@ -14,6 +14,7 @@ import type {
   DestroyConnectionProps,
   RegisterConnectionProps,
   SendToConnectionProps,
+  SendToTopicProps,
   SendToUserProps,
   WriteProps,
 } from './types';
@@ -36,23 +37,29 @@ export class SseConnectionsService {
    * Only users with at least one connection on this node have an entry.
    */
   private readonly socketIdsByUserId = new Map<string, Set<string>>();
+  /**
+   * Only topics with at least one connection on this node have an entry.
+   */
+  private readonly socketIdsByTopic = new Map<string, Set<string>>();
   private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor(private readonly logger: LoggerService) {}
 
   register(props: RegisterConnectionProps): SseConnection {
-    const { socketId, userId, response } = props;
+    const { socketId, userId, response, topics = [] } = props;
 
     const connection: SseConnection = {
       socketId,
       userId,
       response,
       connectedAt: Date.now(),
+      topics: new Set(topics),
       drainTimeout: null,
     };
 
     this.connections.set(socketId, connection);
     this.addToUserIndex(connection);
+    this.addToTopicsIndex(connection);
 
     this.startHeartbeat();
 
@@ -74,6 +81,7 @@ export class SseConnectionsService {
 
     this.connections.delete(socketId);
     this.removeFromUserIndex(connection);
+    this.removeFromTopicsIndex(connection);
 
     if (this.connections.size === 0) {
       this.stopHeartbeat();
@@ -107,6 +115,20 @@ export class SseConnectionsService {
     const userSocketIds = this.socketIdsByUserId.get(userId);
 
     userSocketIds?.forEach((socketId) => {
+      this.send({ socketId, message });
+    });
+  }
+
+  /**
+   * Writes to every connection in the topic on this node.
+   * A no-op if the topic has none here.
+   */
+  sendToTopic(props: SendToTopicProps): void {
+    const { topic, message } = props;
+
+    const topicSocketIds = this.socketIdsByTopic.get(topic);
+
+    topicSocketIds?.forEach((socketId) => {
       this.send({ socketId, message });
     });
   }
@@ -146,6 +168,7 @@ export class SseConnectionsService {
 
     this.connections.clear();
     this.socketIdsByUserId.clear();
+    this.socketIdsByTopic.clear();
 
     const allConnectionsEndedPromise = Promise.all(connectionsArr.map((connection) => this.endWithRetry(connection)));
 
@@ -320,6 +343,34 @@ export class SseConnectionsService {
     if (userSocketIds.size === 0) {
       this.socketIdsByUserId.delete(userId);
     }
+  }
+
+  private addToTopicsIndex(connection: SseConnection): void {
+    const { socketId, topics } = connection;
+
+    topics.forEach((topic) => {
+      const topicSocketIds = this.socketIdsByTopic.get(topic) ?? new Set<string>();
+
+      topicSocketIds.add(socketId);
+
+      this.socketIdsByTopic.set(topic, topicSocketIds);
+    });
+  }
+
+  private removeFromTopicsIndex(connection: SseConnection): void {
+    const { socketId, topics } = connection;
+
+    topics.forEach((topic) => {
+      const topicSocketIds = this.socketIdsByTopic.get(topic);
+
+      if (!topicSocketIds) return;
+
+      topicSocketIds.delete(socketId);
+
+      if (topicSocketIds.size === 0) {
+        this.socketIdsByTopic.delete(topic);
+      }
+    });
   }
 
   private startHeartbeat(): void {

@@ -56,14 +56,23 @@ export class ServerSentEventsController implements ControllerFactory {
       const isSubscribed = await this.serverSentEventsService.subscribeToUserEvents(userId);
 
       if (!isSubscribed) {
-        await this.releaseConnectionResources({ userId, socketId });
+        await this.releaseConnectionResources({ userId, socketId, topics: [] });
 
         throw new ServiceUnavailableError('Failed to subscribe to user events');
       }
 
-      // Step 5: The client may have left during the steps above. Its 'close' already fired, so release here.
+      // Step 5: Make this node receive the events of the user's topics. On failure, nothing of it is left subscribed.
+      const topics = await this.serverSentEventsService.subscribeToUserTopics(userId);
+
+      if (!topics) {
+        await this.releaseConnectionResources({ userId, socketId, topics: [] });
+
+        throw new ServiceUnavailableError('Failed to subscribe to topic events');
+      }
+
+      // Step 6: The client may have left during the steps above. Its 'close' already fired, so release here.
       if (req.socket.destroyed) {
-        await this.releaseConnectionResources({ userId, socketId });
+        await this.releaseConnectionResources({ userId, socketId, topics });
 
         return;
       }
@@ -78,27 +87,30 @@ export class ServerSentEventsController implements ControllerFactory {
 
       req.socket.setNoDelay(true);
 
-      const connection = this.sseConnectionsService.register({ socketId, userId, response: res });
+      const connection = this.sseConnectionsService.register({ socketId, userId, topics, response: res });
 
       this.sendConnectedMessage(connection);
 
       res.on('close', () => {
+        const connectionTopics = Array.from(connection.topics);
+
         this.sseConnectionsService.unregister(socketId);
-        this.releaseConnectionResources({ userId, socketId });
+        this.releaseConnectionResources({ userId, socketId, topics: connectionTopics });
       });
     });
   }
 
   /**
-   * Undoes the lease and the subscription taken in connect.
-   * Both promises are wrapped in a try-catch, so this never throws.
+   * Undoes the lease and the subscriptions taken in connect.
+   * Every promise is wrapped in a try-catch, so this never throws.
    */
   private async releaseConnectionResources(props: ReleaseConnectionResourcesProps): Promise<void> {
-    const { userId, socketId } = props;
+    const { userId, socketId, topics } = props;
 
     await Promise.all([
       this.sseConnectionLimiterService.release({ userId, socketId }),
       this.serverSentEventsService.unsubscribeFromUserEvents(userId),
+      this.serverSentEventsService.unsubscribeFromTopics(topics),
     ]);
   }
 

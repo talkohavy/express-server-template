@@ -6,6 +6,10 @@ export type RegisterConnectionProps = {
   socketId: string;
   userId: string;
   response: Response;
+  /**
+   * @default []
+   */
+  topics?: string[];
 };
 
 export type SendToConnectionProps = {
@@ -15,6 +19,11 @@ export type SendToConnectionProps = {
 
 export type SendToUserProps = {
   userId: string;
+  message: string;
+};
+
+export type SendToTopicProps = {
+  topic: string;
   message: string;
 };
 

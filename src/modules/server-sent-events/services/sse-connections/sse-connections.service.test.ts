@@ -206,6 +206,53 @@ describe('SseConnectionsService', () => {
     });
   });
 
+  describe('sendToTopic', () => {
+    it('should write to every connection in the topic and to no one else', () => {
+      const firstMember = createResponseMock();
+      const secondMember = createResponseMock();
+      const nonMember = createResponseMock();
+      service.register({ socketId: randomUUID(), response: firstMember, userId: USER_ID, topics: ['chat:7'] });
+      service.register({
+        socketId: randomUUID(),
+        response: secondMember,
+        userId: OTHER_USER_ID,
+        topics: ['chat:7', 'chat:12'],
+      });
+      service.register({ socketId: randomUUID(), response: nonMember, userId: 'user-3', topics: ['chat:12'] });
+
+      service.sendToTopic({ topic: 'chat:7', message: 'data: x\n\n' });
+
+      expect(firstMember.write).toHaveBeenCalledWith('data: x\n\n');
+      expect(secondMember.write).toHaveBeenCalledWith('data: x\n\n');
+      expect(nonMember.write).not.toHaveBeenCalled();
+    });
+
+    it('should stop writing to a connection once it is unregistered', () => {
+      const response = createResponseMock();
+      const connection = service.register({ socketId: randomUUID(), response, userId: USER_ID, topics: ['chat:7'] });
+
+      service.unregister(connection.socketId);
+      service.sendToTopic({ topic: 'chat:7', message: 'data: x\n\n' });
+
+      expect(response.write).not.toHaveBeenCalled();
+    });
+
+    it("should keep the connection's topics after unregister, so its subscriptions can still be released", () => {
+      const connection = service.register({
+        socketId: randomUUID(),
+        response: createResponseMock(),
+        userId: USER_ID,
+        topics: ['chat:7'],
+      });
+
+      service.unregister(connection.socketId);
+
+      const actualResult = Array.from(connection.topics);
+
+      expect(actualResult).toEqual(['chat:7']);
+    });
+  });
+
   describe('sendToAll', () => {
     it('should write the message to every connection', () => {
       const responses = [createResponseMock(), createResponseMock(), createResponseMock()];

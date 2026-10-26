@@ -17,6 +17,7 @@ import type { ModuleFactory } from '@src/lib/lucky-server';
  * - logger plugin
  * - redis plugin
  * - sse-publisher plugin
+ * - sse-topics plugin
  */
 export class ServerSentEventsModule implements ModuleFactory {
   private sseConnectionsService!: SseConnectionsService;
@@ -26,7 +27,7 @@ export class ServerSentEventsModule implements ModuleFactory {
   constructor(private readonly app: Application) {}
 
   async init(): Promise<void> {
-    const { logger, configService, redis, ssePublisher } = this.app;
+    const { logger, configService, redis, ssePublisher, sseTopics } = this.app;
     const { pub: redisPubClient, sub: redisSubClient } = redis;
 
     this.sseConnectionsService = new SseConnectionsService(logger);
@@ -41,6 +42,7 @@ export class ServerSentEventsModule implements ModuleFactory {
       this.sseConnectionsService,
       sseChannelSubscriberService,
       ssePublisher,
+      sseTopics,
       redisSubClient,
     );
 

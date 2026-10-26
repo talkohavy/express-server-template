@@ -21,6 +21,13 @@ export type SendToUserProps = BroadcastProps & {
   userId: string;
 };
 
+export type SendToTopicProps = BroadcastProps & {
+  /**
+   * Any string, e.g. `chat:7`.
+   */
+  topic: string;
+};
+
 export type PublishProps = {
   channel: string;
   event: string;

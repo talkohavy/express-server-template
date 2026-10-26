@@ -11,7 +11,12 @@ describe('ServerSentEventsController', () => {
   let app: Application;
   let sseConnectionsService: { getConnectionsCount: jest.Mock };
   let sseConnectionLimiterService: { acquire: jest.Mock; release: jest.Mock };
-  let serverSentEventsService: { subscribeToUserEvents: jest.Mock; unsubscribeFromUserEvents: jest.Mock };
+  let serverSentEventsService: {
+    subscribeToUserEvents: jest.Mock;
+    unsubscribeFromUserEvents: jest.Mock;
+    subscribeToUserTopics: jest.Mock;
+    unsubscribeFromTopics: jest.Mock;
+  };
 
   beforeEach(() => {
     app = express() as unknown as Application;
@@ -26,6 +31,8 @@ describe('ServerSentEventsController', () => {
     serverSentEventsService = {
       subscribeToUserEvents: jest.fn().mockResolvedValue(true),
       unsubscribeFromUserEvents: jest.fn(),
+      subscribeToUserTopics: jest.fn().mockResolvedValue([]),
+      unsubscribeFromTopics: jest.fn(),
     };
 
     const controller = new ServerSentEventsController(
@@ -70,6 +77,21 @@ describe('ServerSentEventsController', () => {
         socketId: expect.any(String),
       });
       expect(serverSentEventsService.unsubscribeFromUserEvents).toHaveBeenCalledWith('user-1');
+      expect(serverSentEventsService.subscribeToUserTopics).not.toHaveBeenCalled();
+    });
+
+    it('should respond with 503 and release what it took when subscribing to topic events fails', async () => {
+      serverSentEventsService.subscribeToUserTopics.mockResolvedValue(null);
+
+      const response = await request(app).get(API_PATHS.sse);
+
+      expect(response.status).toBe(StatusCodes.SERVICE_UNAVAILABLE);
+      expect(sseConnectionLimiterService.release).toHaveBeenCalledWith({
+        userId: 'user-1',
+        socketId: expect.any(String),
+      });
+      expect(serverSentEventsService.unsubscribeFromUserEvents).toHaveBeenCalledWith('user-1');
+      expect(serverSentEventsService.unsubscribeFromTopics).toHaveBeenCalledWith([]);
     });
   });
 });

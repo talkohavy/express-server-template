@@ -3,14 +3,16 @@ import { ServerSentEventsService } from './server-sent-events.service';
 import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SsePublisherService } from '@src/core/services/sse-publisher';
+import type { SseTopicsService } from '@src/core/services/sse-topics';
 import type { SseChannelSubscriberService } from '../sse-channel-subscriber';
 import type { SseConnectionsService } from '../sse-connections';
 
 describe('ServerSentEventsService', () => {
   let service: ServerSentEventsService;
   let ssePublisherService: { broadcast: jest.Mock };
+  let sseTopicsService: { getUserTopics: jest.Mock };
   let redisSubClient: { subscribe: jest.Mock; unsubscribe: jest.Mock };
-  let sseConnectionsService: { sendToAll: jest.Mock; sendToUser: jest.Mock };
+  let sseConnectionsService: { sendToAll: jest.Mock; sendToUser: jest.Mock; sendToTopic: jest.Mock };
   let sseChannelSubscriberService: { subscribe: jest.Mock; unsubscribe: jest.Mock; unsubscribeAll: jest.Mock };
   let logger: { info: jest.Mock; error: jest.Mock };
 
@@ -24,11 +26,12 @@ describe('ServerSentEventsService', () => {
 
   beforeEach(() => {
     ssePublisherService = { broadcast: jest.fn().mockResolvedValue(1) };
+    sseTopicsService = { getUserTopics: jest.fn().mockResolvedValue([]) };
     redisSubClient = {
       subscribe: jest.fn().mockResolvedValue(undefined),
       unsubscribe: jest.fn().mockResolvedValue(undefined),
     };
-    sseConnectionsService = { sendToAll: jest.fn(), sendToUser: jest.fn() };
+    sseConnectionsService = { sendToAll: jest.fn(), sendToUser: jest.fn(), sendToTopic: jest.fn() };
     sseChannelSubscriberService = {
       subscribe: jest.fn().mockResolvedValue(true),
       unsubscribe: jest.fn(),
@@ -41,6 +44,7 @@ describe('ServerSentEventsService', () => {
       sseConnectionsService as unknown as SseConnectionsService,
       sseChannelSubscriberService as unknown as SseChannelSubscriberService,
       ssePublisherService as unknown as SsePublisherService,
+      sseTopicsService as unknown as SseTopicsService,
       redisSubClient as unknown as RedisClientType,
     );
   });
@@ -124,6 +128,75 @@ describe('ServerSentEventsService', () => {
       await service.unsubscribeFromUserEvents('user-1');
 
       expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith('sse:events:user:user-1');
+    });
+  });
+
+  describe('topic events', () => {
+    function getSubscribedChannels(): string[] {
+      const channels = sseChannelSubscriberService.subscribe.mock.calls.map(([{ channel }]) => channel);
+
+      return channels;
+    }
+
+    it('should subscribe to the channel of every topic the user is in and return the topics', async () => {
+      const expectedResult = ['sse:events:topic:chat:7', 'sse:events:topic:chat:12'];
+      sseTopicsService.getUserTopics.mockResolvedValue(['chat:7', 'chat:12']);
+
+      const topics = await service.subscribeToUserTopics('user-1');
+      const actualResult = getSubscribedChannels();
+
+      expect(sseTopicsService.getUserTopics).toHaveBeenCalledWith('user-1');
+      expect(actualResult).toEqual(expectedResult);
+      expect(topics).toEqual(['chat:7', 'chat:12']);
+    });
+
+    it('should return no topics for a user in none', async () => {
+      const actualResult = await service.subscribeToUserTopics('user-1');
+
+      expect(actualResult).toEqual([]);
+      expect(sseChannelSubscriberService.subscribe).not.toHaveBeenCalled();
+    });
+
+    it("should return null when reading the user's topics fails", async () => {
+      sseTopicsService.getUserTopics.mockRejectedValue(new Error('Redis down'));
+
+      const actualResult = await service.subscribeToUserTopics('user-1');
+
+      expect(actualResult).toBeNull();
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should return null and release the subscribed topics when one of them fails', async () => {
+      sseTopicsService.getUserTopics.mockResolvedValue(['chat:7', 'chat:12']);
+      sseChannelSubscriberService.subscribe.mockImplementation(
+        async ({ channel }) => channel !== 'sse:events:topic:chat:12',
+      );
+
+      const actualResult = await service.subscribeToUserTopics('user-1');
+
+      expect(actualResult).toBeNull();
+      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith('sse:events:topic:chat:7');
+    });
+
+    it("should send messages from a topic's channel to that topic's connections", async () => {
+      sseTopicsService.getUserTopics.mockResolvedValue(['chat:7']);
+      await service.subscribeToUserTopics('user-1');
+      const { listener } = sseChannelSubscriberService.subscribe.mock.calls[0][0];
+
+      listener(JSON.stringify({ event: 'new-message', data: { chatId: '7' } }));
+
+      expect(sseConnectionsService.sendToTopic).toHaveBeenCalledWith({
+        topic: 'chat:7',
+        message: 'event: new-message\ndata: {"chatId":"7"}\n\n',
+      });
+    });
+
+    it("should unsubscribe from every given topic's channel", async () => {
+      await service.unsubscribeFromTopics(['chat:7', 'chat:12']);
+
+      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith('sse:events:topic:chat:7');
+      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith('sse:events:topic:chat:12');
     });
   });
 

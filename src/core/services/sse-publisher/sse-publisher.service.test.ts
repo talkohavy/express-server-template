@@ -33,6 +33,27 @@ describe('SsePublisherService', () => {
     });
   });
 
+  describe('sendToTopic', () => {
+    it("should publish the envelope to the topic's channel", async () => {
+      const expectedResult = ['sse:events:topic:chat:7', { event: 'new-message', data: { chatId: '7' } }];
+
+      await service.sendToTopic({ topic: 'chat:7', event: 'new-message', data: { chatId: '7' } });
+
+      const [channel, payload] = redisPubClient.publish.mock.calls[0];
+      const actualResult = [channel, JSON.parse(payload)];
+
+      expect(actualResult).toEqual(expectedResult);
+    });
+
+    it('should return 0 when no node holds a connection in the topic', async () => {
+      redisPubClient.publish.mockResolvedValue(0);
+
+      const actualResult = await service.sendToTopic({ topic: 'chat:7', data: 'hi' });
+
+      expect(actualResult).toBe(0);
+    });
+  });
+
   describe('broadcast', () => {
     it('should publish the envelope to the broadcast channel', async () => {
       const expectedResult = [SSE_EVENTS_CHANNEL, { event: 'update', data: { a: 1 } }];

@@ -1,19 +1,21 @@
 import { isObject } from '@src/common/utils/isObject';
 import { parseJson } from '@src/common/utils/parseJson';
-import { getUserEventsChannel, SSE_EVENTS_CHANNEL } from '@src/core/services/sse-publisher';
+import { getTopicEventsChannel, getUserEventsChannel, SSE_EVENTS_CHANNEL } from '@src/core/services/sse-publisher';
 import { SSE_SIMULATION_INTERVAL_MS } from '../../logic/constants';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseEnvelope, SsePublisherService } from '@src/core/services/sse-publisher';
+import type { SseTopicsService } from '@src/core/services/sse-topics';
 import type { SseChannelSubscriberService } from '../sse-channel-subscriber';
 import type { SseConnectionsService } from '../sse-connections';
-import type { ForwardEnvelopeToUserProps } from './types';
+import type { ForwardEnvelopeToTopicProps, ForwardEnvelopeToUserProps } from './types';
 
 /**
  * Bridges Redis pub/sub and this node's SSE connections (the receiving side; publishing is SsePublisherService).
  * - Broadcast: every node subscribes to the same channel, so a message published from any node reaches every client.
  * - Per user: a node subscribes to a user's channel only while it holds a connection of that user.
+ * - Per topic: a node subscribes to a topic's channel only while it holds a connection in that topic.
  */
 export class ServerSentEventsService {
   private simulationInterval: NodeJS.Timeout | null = null;
@@ -23,6 +25,7 @@ export class ServerSentEventsService {
     private readonly sseConnectionsService: SseConnectionsService,
     private readonly sseChannelSubscriberService: SseChannelSubscriberService,
     private readonly ssePublisherService: SsePublisherService,
+    private readonly sseTopicsService: SseTopicsService,
     private readonly redisSubClient: RedisClientType,
   ) {}
 
@@ -54,6 +57,38 @@ export class ServerSentEventsService {
     const channel = getUserEventsChannel(userId);
 
     await this.sseChannelSubscriberService.unsubscribe(channel);
+  }
+
+  /**
+   * Call when a connection of the user opens on this node, so it receives the events of the user's topics.
+   * Reference-counted per topic.
+   * @returns The topics, all subscribed. null if reading or subscribing failed, in which case nothing is left subscribed.
+   */
+  async subscribeToUserTopics(userId: string): Promise<string[] | null> {
+    const topics = await this.readUserTopics(userId);
+
+    if (!topics) return null;
+
+    const isSubscribedResults = await Promise.all(topics.map((topic) => this.subscribeToTopicEvents(topic)));
+
+    const isEveryTopicSubscribed = isSubscribedResults.every(Boolean);
+
+    if (isEveryTopicSubscribed) return topics;
+
+    const subscribedTopics = topics.filter((_topic, index) => isSubscribedResults[index]);
+
+    await this.unsubscribeFromTopics(subscribedTopics);
+
+    return null;
+  }
+
+  /**
+   * Call when a connection closes on this node, with the topics it held.
+   */
+  async unsubscribeFromTopics(topics: string[]): Promise<void> {
+    const topicEventsChannels = topics.map(getTopicEventsChannel);
+
+    await Promise.all(topicEventsChannels.map((channel) => this.sseChannelSubscriberService.unsubscribe(channel)));
   }
 
   /**
@@ -108,6 +143,42 @@ export class ServerSentEventsService {
     if (!message) return;
 
     this.sseConnectionsService.sendToUser({ userId, message });
+  }
+
+  private forwardEnvelopeToTopic(props: ForwardEnvelopeToTopicProps): void {
+    const { topic, payload } = props;
+
+    const message = this.envelopeToSseMessage(payload);
+
+    if (!message) return;
+
+    this.sseConnectionsService.sendToTopic({ topic, message });
+  }
+
+  /**
+   * @returns The user's topics, or null (logged) if Redis failed.
+   */
+  private async readUserTopics(userId: string): Promise<string[] | null> {
+    try {
+      const topics = await this.sseTopicsService.getUserTopics(userId);
+
+      return topics;
+    } catch (error) {
+      this.logger.error('Failed to read SSE user topics', { userId, error });
+
+      return null;
+    }
+  }
+
+  private async subscribeToTopicEvents(topic: string): Promise<boolean> {
+    const topicEventsChannel = getTopicEventsChannel(topic);
+
+    const isSubscribed = await this.sseChannelSubscriberService.subscribe({
+      channel: topicEventsChannel,
+      listener: (payload) => this.forwardEnvelopeToTopic({ topic, payload }),
+    });
+
+    return isSubscribed;
   }
 
   /**
