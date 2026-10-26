@@ -35,4 +35,5 @@ export const optimizedApp: OptimizedApp = {
   topicSubscriber: null as any,
   topicPublisher: null as any,
   ssePublisher: null as any,
+  sseTopics: null as any,
 };
