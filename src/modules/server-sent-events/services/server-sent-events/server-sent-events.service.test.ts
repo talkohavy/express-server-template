@@ -65,10 +65,10 @@ describe('ServerSentEventsService', () => {
     it("should hold the user's channel for the connection", async () => {
       await service.subscribeToUserEvents(USER_CONNECTION);
 
-      const [{ channel, holderId }] = sseChannelSubscriberService.subscribe.mock.calls[0];
+      const [{ channelName, socketId }] = sseChannelSubscriberService.subscribe.mock.calls[0];
 
-      expect(channel).toBe('sse:events:user:user-1');
-      expect(holderId).toBe('socket-1');
+      expect(channelName).toBe('sse:events:user:user-1');
+      expect(socketId).toBe('socket-1');
     });
 
     it('should report a failed subscription', async () => {
@@ -118,7 +118,7 @@ describe('ServerSentEventsService', () => {
 
   describe('topic events', () => {
     function getSubscribedChannels(): string[] {
-      const channels = sseChannelSubscriberService.subscribe.mock.calls.map(([{ channel }]) => channel);
+      const channels = sseChannelSubscriberService.subscribe.mock.calls.map(([{ channelName }]) => channelName);
 
       return channels;
     }
@@ -155,7 +155,7 @@ describe('ServerSentEventsService', () => {
       sseTopicsService.getUserTopics.mockResolvedValue(['chat:7', 'chat:12']);
 
       await service.subscribeToUserTopics(USER_CONNECTION);
-      const actualResult = sseChannelSubscriberService.subscribe.mock.calls.map(([{ holderId }]) => holderId);
+      const actualResult = sseChannelSubscriberService.subscribe.mock.calls.map(([{ socketId }]) => socketId);
 
       expect(actualResult).toEqual(['socket-1', 'socket-1']);
     });
@@ -163,7 +163,7 @@ describe('ServerSentEventsService', () => {
     it('should return null when subscribing to one of the topics fails', async () => {
       sseTopicsService.getUserTopics.mockResolvedValue(['chat:7', 'chat:12']);
       sseChannelSubscriberService.subscribe.mockImplementation(
-        async ({ channel }) => channel !== 'sse:events:topic:chat:12',
+        async ({ channelName }) => channelName !== 'sse:events:topic:chat:12',
       );
 
       const actualResult = await service.subscribeToUserTopics(USER_CONNECTION);
@@ -214,10 +214,10 @@ describe('ServerSentEventsService', () => {
       expect(sseConnectionsService.addTopic).toHaveBeenCalledWith({ socketId: 'socket-2', topic: 'chat:7' });
       expect(sseChannelSubscriberService.subscribe).toHaveBeenCalledTimes(2);
       expect(sseChannelSubscriberService.subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({ channel: 'sse:events:topic:chat:7', holderId: 'socket-1' }),
+        expect.objectContaining({ channelName: 'sse:events:topic:chat:7', socketId: 'socket-1' }),
       );
       expect(sseChannelSubscriberService.subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({ channel: 'sse:events:topic:chat:7', holderId: 'socket-2' }),
+        expect.objectContaining({ channelName: 'sse:events:topic:chat:7', socketId: 'socket-2' }),
       );
     });
 
@@ -272,8 +272,8 @@ describe('ServerSentEventsService', () => {
 
       expect(sseConnectionsService.removeTopic).toHaveBeenCalledWith({ socketId: 'socket-1', topic: 'chat:7' });
       expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith({
-        channel: 'sse:events:topic:chat:7',
-        holderId: 'socket-1',
+        channelName: 'sse:events:topic:chat:7',
+        socketId: 'socket-1',
       });
     });
 
@@ -285,8 +285,8 @@ describe('ServerSentEventsService', () => {
       listener(TOPIC_LEFT);
 
       expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith({
-        channel: 'sse:events:topic:chat:7',
-        holderId: 'socket-1',
+        channelName: 'sse:events:topic:chat:7',
+        socketId: 'socket-1',
       });
     });
 

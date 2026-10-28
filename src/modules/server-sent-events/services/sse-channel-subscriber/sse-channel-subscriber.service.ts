@@ -13,14 +13,14 @@ import type {
 } from './types';
 
 /**
- * Shared Redis pub/sub subscriptions, tracked per holder (a connection's socketId).
+ * Shared Redis pub/sub subscriptions, tracked per connection (by its socketId).
  *
  * Many local connections can need the same channel (e.g. one user with several tabs), but Redis must be
- * subscribed only once per node: SUBSCRIBE when the first holder arrives, UNSUBSCRIBE when the last one leaves.
+ * subscribed only once per node: SUBSCRIBE when the first connection arrives, UNSUBSCRIBE when the last one leaves.
  *
  * This service is the single source of truth for what each connection holds:
- * - Every operation is idempotent per holder: subscribing twice holds once, releasing twice releases once.
- * - {@link unsubscribeHolder} releases everything a connection holds, so a closing connection can't leak a channel
+ * - Every operation is idempotent per connection: subscribing twice holds once, releasing twice releases once.
+ * - {@link unsubscribeSocketId} releases everything a connection holds, so a closing connection can't leak a channel
  *   or release one it doesn't hold, whatever happened before (failures, concurrent joins and leaves).
  *
  * Why not rely on node-redis for this: it stores listeners in a Set, so subscribing the same listener twice
@@ -32,8 +32,8 @@ import type {
 export class SseChannelSubscriberService {
   private readonly channelsByName = new Map<string, ChannelSubscription>();
   /**
-   * holderId -> the channels it holds.
-   * Only holders with at least one channel have an entry.
+   * socketId -> the channels it holds.
+   * Only socketIds with at least one channel have an entry.
    * Good for quickly removing all channels a socketId holds.
    */
   private readonly channelsBySocketId = new Map<string, Set<string>>();
@@ -54,7 +54,7 @@ export class SseChannelSubscriberService {
    * - a topic events channel (`sse:events:topic:{topic}`),
    * - a user events channel (`sse:events:user:{userId}`).
    *
-   * @returns true once Redis confirmed the subscription, false if it failed (the holder then holds nothing for it).
+   * @returns true once Redis confirmed the subscription, false if it failed (the socketId then holds nothing for it).
    */
   async subscribe(props: SubscribeProps): Promise<boolean> {
     const { socketId, channelName } = props;
@@ -85,7 +85,7 @@ export class SseChannelSubscriberService {
   }
 
   /**
-   * A no-op if the holder doesn't hold the channel.
+   * A no-op if the socketId doesn't hold the channel.
    */
   async unsubscribe(props: UnsubscribeProps): Promise<void> {
     const { channelName, socketId } = props;
@@ -118,12 +118,12 @@ export class SseChannelSubscriberService {
   }
 
   /**
-   * Releases every channel the holder holds. Call when its connection closes.
+   * Releases every channel the socketId holds. Call when its connection closes.
    */
   async unsubscribeSocketId(socketId: string): Promise<void> {
-    const holderChannels = Array.from(this.channelsBySocketId.get(socketId) ?? []);
+    const socketChannels = Array.from(this.channelsBySocketId.get(socketId) ?? []);
 
-    await Promise.all(holderChannels.map((channelName) => this.unsubscribe({ channelName, socketId })));
+    await Promise.all(socketChannels.map((channelName) => this.unsubscribe({ channelName, socketId })));
   }
 
   /**
@@ -180,7 +180,7 @@ export class SseChannelSubscriberService {
     this.channelsByName.set(channelName, channel);
 
     // Step 3: Subscribe to the channel (to redis events, and attach a listener).
-    channel.pendingSubscription = this.subscribeToRedis({ channelName, listener }).finally(() => {
+    channel.pendingSubscription = this.subscribeToRedis({ channelName, channel }).finally(() => {
       channel.pendingSubscription = null;
     });
 
@@ -189,12 +189,13 @@ export class SseChannelSubscriberService {
   }
 
   private async subscribeToRedis(props: SubscribeToRedisProps): Promise<void> {
-    const { channelName, listener } = props;
+    const { channelName, channel } = props;
 
     try {
-      await this.redisSubClient.subscribe(channelName, listener);
+      await this.redisSubClient.subscribe(channelName, channel.listener);
     } catch (error) {
-      if (this.channelsByName.get(channelName)?.listener === listener) {
+      // The channel may have been released and re-created meanwhile; that newer subscription must stay.
+      if (this.channelsByName.get(channelName) === channel) {
         this.channelsByName.delete(channelName);
       }
 
@@ -203,7 +204,7 @@ export class SseChannelSubscriberService {
   }
 
   /**
-   * The failed subscription is already out of the map. The holder keeps the channel in its index only if it also
+   * The failed subscription is already out of the map. The socketId keeps the channel in its index only if it also
    * holds it through a newer subscription (it subscribed again after the failed one was dropped).
    */
   private dropFailedSocketId(props: DropFailedSocketIdProps): void {
@@ -234,13 +235,13 @@ export class SseChannelSubscriberService {
   private removeFromSocketIndex(props: RemoveFromSocketIndexProps): void {
     const { socketId, channelName } = props;
 
-    const holderChannels = this.channelsBySocketId.get(socketId);
+    const socketChannels = this.channelsBySocketId.get(socketId);
 
-    if (!holderChannels) return;
+    if (!socketChannels) return;
 
-    holderChannels.delete(channelName);
+    socketChannels.delete(channelName);
 
-    if (holderChannels.size === 0) {
+    if (socketChannels.size === 0) {
       this.channelsBySocketId.delete(socketId);
     }
   }

@@ -45,7 +45,7 @@ describe('SseChannelSubscriberService', () => {
       expect(redisSubClient.subscribe).toHaveBeenCalledWith(CHANNEL, listener);
     });
 
-    it('should hold once when the same holder subscribes twice', async () => {
+    it('should hold once when the same connection subscribes twice', async () => {
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
 
@@ -126,7 +126,7 @@ describe('SseChannelSubscriberService', () => {
   });
 
   describe('unsubscribe', () => {
-    it('should keep the Redis subscription while other holders remain', async () => {
+    it('should keep the Redis subscription while other connections remain', async () => {
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-2', listener });
 
@@ -135,7 +135,7 @@ describe('SseChannelSubscriberService', () => {
       expect(redisSubClient.unsubscribe).not.toHaveBeenCalled();
     });
 
-    it('should unsubscribe from Redis when the last holder leaves', async () => {
+    it('should unsubscribe from Redis when the last connection leaves', async () => {
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-2', listener });
 
@@ -146,7 +146,7 @@ describe('SseChannelSubscriberService', () => {
       expect(service.getChannelsCount()).toBe(0);
     });
 
-    it("should not drop another holder's subscription when a holder releases twice", async () => {
+    it("should not drop another connection's subscription when a connection releases twice", async () => {
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-2', listener });
 
@@ -157,7 +157,7 @@ describe('SseChannelSubscriberService', () => {
       expect(service.isSocketSubscribed({ channelName: CHANNEL, socketId: 'socket-2' })).toBe(true);
     });
 
-    it("should not drop another holder's subscription when a failed subscriber was already released", async () => {
+    it("should not drop another connection's subscription when a failed subscriber was already released", async () => {
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
       redisSubClient.unsubscribe.mockClear();
       const deferred = createDeferred();
@@ -189,7 +189,7 @@ describe('SseChannelSubscriberService', () => {
       expect(redisSubClient.unsubscribe).not.toHaveBeenCalled();
     });
 
-    it("should be a no-op for a holder that doesn't hold the channel", async () => {
+    it("should be a no-op for a connection that doesn't hold the channel", async () => {
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
 
       await service.unsubscribe({ channelName: CHANNEL, socketId: 'socket-2' });
@@ -200,7 +200,7 @@ describe('SseChannelSubscriberService', () => {
   });
 
   describe('unsubscribeSocketId', () => {
-    it('should release every channel the holder holds', async () => {
+    it('should release every channel the connection holds', async () => {
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
       await service.subscribe({ channelName: OTHER_CHANNEL, socketId: 'socket-1', listener });
 
@@ -211,7 +211,7 @@ describe('SseChannelSubscriberService', () => {
       expect(service.getChannelsCount()).toBe(0);
     });
 
-    it("should leave other holders' channels alone", async () => {
+    it("should leave other connections' channels alone", async () => {
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-1', listener });
       await service.subscribe({ channelName: CHANNEL, socketId: 'socket-2', listener });
 
