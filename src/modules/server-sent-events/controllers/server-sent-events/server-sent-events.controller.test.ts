@@ -13,9 +13,9 @@ describe('ServerSentEventsController', () => {
   let sseConnectionLimiterService: { acquire: jest.Mock; release: jest.Mock };
   let serverSentEventsService: {
     subscribeToUserEvents: jest.Mock;
-    unsubscribeFromUserEvents: jest.Mock;
     subscribeToUserTopics: jest.Mock;
-    unsubscribeFromTopics: jest.Mock;
+    releaseConnectionSubscriptions: jest.Mock;
+    completeTopicsLoad: jest.Mock;
   };
 
   beforeEach(() => {
@@ -30,9 +30,9 @@ describe('ServerSentEventsController', () => {
     sseConnectionLimiterService = { acquire: jest.fn().mockResolvedValue(true), release: jest.fn() };
     serverSentEventsService = {
       subscribeToUserEvents: jest.fn().mockResolvedValue(true),
-      unsubscribeFromUserEvents: jest.fn(),
       subscribeToUserTopics: jest.fn().mockResolvedValue([]),
-      unsubscribeFromTopics: jest.fn(),
+      releaseConnectionSubscriptions: jest.fn(),
+      completeTopicsLoad: jest.fn(),
     };
 
     const controller = new ServerSentEventsController(
@@ -71,12 +71,11 @@ describe('ServerSentEventsController', () => {
 
       const response = await request(app).get(API_PATHS.sse);
 
+      const [{ socketId }] = serverSentEventsService.subscribeToUserEvents.mock.calls[0];
+
       expect(response.status).toBe(StatusCodes.SERVICE_UNAVAILABLE);
-      expect(sseConnectionLimiterService.release).toHaveBeenCalledWith({
-        userId: 'user-1',
-        socketId: expect.any(String),
-      });
-      expect(serverSentEventsService.unsubscribeFromUserEvents).toHaveBeenCalledWith('user-1');
+      expect(sseConnectionLimiterService.release).toHaveBeenCalledWith({ userId: 'user-1', socketId });
+      expect(serverSentEventsService.releaseConnectionSubscriptions).toHaveBeenCalledWith(socketId);
       expect(serverSentEventsService.subscribeToUserTopics).not.toHaveBeenCalled();
     });
 
@@ -85,13 +84,11 @@ describe('ServerSentEventsController', () => {
 
       const response = await request(app).get(API_PATHS.sse);
 
+      const [{ socketId }] = serverSentEventsService.subscribeToUserTopics.mock.calls[0];
+
       expect(response.status).toBe(StatusCodes.SERVICE_UNAVAILABLE);
-      expect(sseConnectionLimiterService.release).toHaveBeenCalledWith({
-        userId: 'user-1',
-        socketId: expect.any(String),
-      });
-      expect(serverSentEventsService.unsubscribeFromUserEvents).toHaveBeenCalledWith('user-1');
-      expect(serverSentEventsService.unsubscribeFromTopics).toHaveBeenCalledWith([]);
+      expect(sseConnectionLimiterService.release).toHaveBeenCalledWith({ userId: 'user-1', socketId });
+      expect(serverSentEventsService.releaseConnectionSubscriptions).toHaveBeenCalledWith(socketId);
     });
   });
 });

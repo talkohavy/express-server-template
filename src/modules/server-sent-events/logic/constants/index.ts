@@ -5,4 +5,3 @@ export * from './heartbeat';
 export * from './limits';
 export * from './reconnect';
 export * from './shutdown';
-export * from './simulation';

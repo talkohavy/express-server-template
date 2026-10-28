@@ -1,41 +1,47 @@
-import { SSE_EVENTS_CHANNEL } from '@src/core/services/sse-publisher';
 import { ServerSentEventsService } from './server-sent-events.service';
-import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
-import type { SsePublisherService } from '@src/core/services/sse-publisher';
 import type { SseTopicsService } from '@src/core/services/sse-topics';
 import type { SseChannelSubscriberService } from '../sse-channel-subscriber';
 import type { SseConnectionsService } from '../sse-connections';
 
+const USER_CONNECTION = { userId: 'user-1', socketId: 'socket-1' };
+
 describe('ServerSentEventsService', () => {
   let service: ServerSentEventsService;
-  let ssePublisherService: { broadcast: jest.Mock };
   let sseTopicsService: { getUserTopics: jest.Mock };
-  let redisSubClient: { subscribe: jest.Mock; unsubscribe: jest.Mock };
-  let sseConnectionsService: { sendToAll: jest.Mock; sendToUser: jest.Mock; sendToTopic: jest.Mock };
-  let sseChannelSubscriberService: { subscribe: jest.Mock; unsubscribe: jest.Mock; unsubscribeAll: jest.Mock };
+  let sseConnectionsService: {
+    sendToAll: jest.Mock;
+    sendToUser: jest.Mock;
+    sendToTopic: jest.Mock;
+    addTopic: jest.Mock;
+    removeTopic: jest.Mock;
+    getSocketIdsByUserId: jest.Mock;
+  };
+  let sseChannelSubscriberService: {
+    subscribe: jest.Mock;
+    unsubscribe: jest.Mock;
+    unsubscribeSocketId: jest.Mock;
+    unsubscribeAll: jest.Mock;
+    isSocketSubscribed: jest.Mock;
+  };
   let logger: { info: jest.Mock; error: jest.Mock };
 
-  async function subscribeAndGetListener() {
-    await service.subscribeToEvents();
-
-    const listener: (payload: string) => void = redisSubClient.subscribe.mock.calls[0][1];
-
-    return listener;
-  }
-
   beforeEach(() => {
-    ssePublisherService = { broadcast: jest.fn().mockResolvedValue(1) };
     sseTopicsService = { getUserTopics: jest.fn().mockResolvedValue([]) };
-    redisSubClient = {
-      subscribe: jest.fn().mockResolvedValue(undefined),
-      unsubscribe: jest.fn().mockResolvedValue(undefined),
+    sseConnectionsService = {
+      sendToAll: jest.fn(),
+      sendToUser: jest.fn(),
+      sendToTopic: jest.fn(),
+      addTopic: jest.fn().mockReturnValue(true),
+      removeTopic: jest.fn().mockReturnValue(true),
+      getSocketIdsByUserId: jest.fn().mockReturnValue(new Map()),
     };
-    sseConnectionsService = { sendToAll: jest.fn(), sendToUser: jest.fn(), sendToTopic: jest.fn() };
     sseChannelSubscriberService = {
       subscribe: jest.fn().mockResolvedValue(true),
       unsubscribe: jest.fn(),
+      unsubscribeSocketId: jest.fn(),
       unsubscribeAll: jest.fn(),
+      isSocketSubscribed: jest.fn().mockReturnValue(false),
     };
     logger = { info: jest.fn(), error: jest.fn() };
 
@@ -43,69 +49,38 @@ describe('ServerSentEventsService', () => {
       logger as unknown as LoggerService,
       sseConnectionsService as unknown as SseConnectionsService,
       sseChannelSubscriberService as unknown as SseChannelSubscriberService,
-      ssePublisherService as unknown as SsePublisherService,
       sseTopicsService as unknown as SseTopicsService,
-      redisSubClient as unknown as RedisClientType,
     );
   });
 
-  afterEach(() => {
-    service.stopSimulation();
-  });
-
-  describe('forwarding Redis messages', () => {
-    it('should send a formatted SSE message to all connections', async () => {
-      const listener = await subscribeAndGetListener();
-
-      listener(JSON.stringify({ event: 'update', data: { a: 1 } }));
-
-      expect(sseConnectionsService.sendToAll).toHaveBeenCalledWith('event: update\ndata: {"a":1}\n\n');
-    });
-
-    it('should ignore invalid JSON payloads', async () => {
-      const listener = await subscribeAndGetListener();
-
-      listener('not-json');
-
-      expect(sseConnectionsService.sendToAll).not.toHaveBeenCalled();
-    });
-
-    it('should ignore envelopes without an event name', async () => {
-      const listener = await subscribeAndGetListener();
-
-      listener(JSON.stringify({ data: { a: 1 } }));
-
-      expect(sseConnectionsService.sendToAll).not.toHaveBeenCalled();
-    });
-  });
-
   describe('user events', () => {
-    async function subscribeToUserAndGetListener(userId: string) {
-      await service.subscribeToUserEvents(userId);
+    async function subscribeToUserAndGetListener() {
+      await service.subscribeToUserEvents(USER_CONNECTION);
 
       const { listener } = sseChannelSubscriberService.subscribe.mock.calls[0][0];
 
       return listener as (payload: string) => void;
     }
 
-    it("should subscribe to the user's channel", async () => {
-      await service.subscribeToUserEvents('user-1');
+    it("should hold the user's channel for the connection", async () => {
+      await service.subscribeToUserEvents(USER_CONNECTION);
 
-      const [{ channel }] = sseChannelSubscriberService.subscribe.mock.calls[0];
+      const [{ channel, holderId }] = sseChannelSubscriberService.subscribe.mock.calls[0];
 
       expect(channel).toBe('sse:events:user:user-1');
+      expect(holderId).toBe('socket-1');
     });
 
     it('should report a failed subscription', async () => {
       sseChannelSubscriberService.subscribe.mockResolvedValue(false);
 
-      const actualResult = await service.subscribeToUserEvents('user-1');
+      const actualResult = await service.subscribeToUserEvents(USER_CONNECTION);
 
       expect(actualResult).toBe(false);
     });
 
     it("should send messages from the user's channel to that user only", async () => {
-      const listener = await subscribeToUserAndGetListener('user-1');
+      const listener = await subscribeToUserAndGetListener();
 
       listener(JSON.stringify({ event: 'update', data: { a: 1 } }));
 
@@ -117,17 +92,27 @@ describe('ServerSentEventsService', () => {
     });
 
     it("should ignore invalid envelopes on the user's channel", async () => {
-      const listener = await subscribeToUserAndGetListener('user-1');
+      const listener = await subscribeToUserAndGetListener();
 
       listener('not-json');
 
       expect(sseConnectionsService.sendToUser).not.toHaveBeenCalled();
     });
 
-    it("should unsubscribe from the user's channel", async () => {
-      await service.unsubscribeFromUserEvents('user-1');
+    it("should ignore envelopes without an event name on the user's channel", async () => {
+      const listener = await subscribeToUserAndGetListener();
 
-      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith('sse:events:user:user-1');
+      listener(JSON.stringify({ data: { a: 1 } }));
+
+      expect(sseConnectionsService.sendToUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('releaseConnectionSubscriptions', () => {
+    it('should release every channel the connection holds', async () => {
+      await service.releaseConnectionSubscriptions('socket-1');
+
+      expect(sseChannelSubscriberService.unsubscribeSocketId).toHaveBeenCalledWith('socket-1');
     });
   });
 
@@ -142,7 +127,7 @@ describe('ServerSentEventsService', () => {
       const expectedResult = ['sse:events:topic:chat:7', 'sse:events:topic:chat:12'];
       sseTopicsService.getUserTopics.mockResolvedValue(['chat:7', 'chat:12']);
 
-      const topics = await service.subscribeToUserTopics('user-1');
+      const topics = await service.subscribeToUserTopics(USER_CONNECTION);
       const actualResult = getSubscribedChannels();
 
       expect(sseTopicsService.getUserTopics).toHaveBeenCalledWith('user-1');
@@ -151,7 +136,7 @@ describe('ServerSentEventsService', () => {
     });
 
     it('should return no topics for a user in none', async () => {
-      const actualResult = await service.subscribeToUserTopics('user-1');
+      const actualResult = await service.subscribeToUserTopics(USER_CONNECTION);
 
       expect(actualResult).toEqual([]);
       expect(sseChannelSubscriberService.subscribe).not.toHaveBeenCalled();
@@ -160,28 +145,35 @@ describe('ServerSentEventsService', () => {
     it("should return null when reading the user's topics fails", async () => {
       sseTopicsService.getUserTopics.mockRejectedValue(new Error('Redis down'));
 
-      const actualResult = await service.subscribeToUserTopics('user-1');
+      const actualResult = await service.subscribeToUserTopics(USER_CONNECTION);
 
       expect(actualResult).toBeNull();
       expect(logger.error).toHaveBeenCalled();
     });
 
-    it('should return null and release the subscribed topics when one of them fails', async () => {
+    it('should hold every topic channel for the connection', async () => {
+      sseTopicsService.getUserTopics.mockResolvedValue(['chat:7', 'chat:12']);
+
+      await service.subscribeToUserTopics(USER_CONNECTION);
+      const actualResult = sseChannelSubscriberService.subscribe.mock.calls.map(([{ holderId }]) => holderId);
+
+      expect(actualResult).toEqual(['socket-1', 'socket-1']);
+    });
+
+    it('should return null when subscribing to one of the topics fails', async () => {
       sseTopicsService.getUserTopics.mockResolvedValue(['chat:7', 'chat:12']);
       sseChannelSubscriberService.subscribe.mockImplementation(
         async ({ channel }) => channel !== 'sse:events:topic:chat:12',
       );
 
-      const actualResult = await service.subscribeToUserTopics('user-1');
+      const actualResult = await service.subscribeToUserTopics(USER_CONNECTION);
 
       expect(actualResult).toBeNull();
-      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledTimes(1);
-      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith('sse:events:topic:chat:7');
     });
 
     it("should send messages from a topic's channel to that topic's connections", async () => {
       sseTopicsService.getUserTopics.mockResolvedValue(['chat:7']);
-      await service.subscribeToUserTopics('user-1');
+      await service.subscribeToUserTopics(USER_CONNECTION);
       const { listener } = sseChannelSubscriberService.subscribe.mock.calls[0][0];
 
       listener(JSON.stringify({ event: 'new-message', data: { chatId: '7' } }));
@@ -191,59 +183,184 @@ describe('ServerSentEventsService', () => {
         message: 'event: new-message\ndata: {"chatId":"7"}\n\n',
       });
     });
-
-    it("should unsubscribe from every given topic's channel", async () => {
-      await service.unsubscribeFromTopics(['chat:7', 'chat:12']);
-
-      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith('sse:events:topic:chat:7');
-      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith('sse:events:topic:chat:12');
-    });
   });
 
-  describe('simulation', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
+  describe('topic changes (control messages on the user channel)', () => {
+    const TOPIC_JOINED = JSON.stringify({ control: 'topic-joined', topic: 'chat:7' });
+    const TOPIC_LEFT = JSON.stringify({ control: 'topic-left', topic: 'chat:7' });
+
+    async function subscribeToUserAndGetListener() {
+      await service.subscribeToUserEvents(USER_CONNECTION);
+
+      const { listener } = sseChannelSubscriberService.subscribe.mock.calls[0][0];
+
+      sseChannelSubscriberService.subscribe.mockClear();
+
+      return listener as (payload: string) => void;
+    }
+
+    function givenOpenConnections(socketIds: string[]) {
+      sseConnectionsService.getSocketIdsByUserId.mockReturnValue(new Map([['user-1', new Set(socketIds)]]));
+    }
+
+    it("should add the topic to every open connection of the user and subscribe to the topic's channel", async () => {
+      givenOpenConnections(['socket-1', 'socket-2']);
+      const listener = await subscribeToUserAndGetListener();
+
+      listener(TOPIC_JOINED);
+      await Promise.resolve();
+
+      expect(sseConnectionsService.addTopic).toHaveBeenCalledWith({ socketId: 'socket-1', topic: 'chat:7' });
+      expect(sseConnectionsService.addTopic).toHaveBeenCalledWith({ socketId: 'socket-2', topic: 'chat:7' });
+      expect(sseChannelSubscriberService.subscribe).toHaveBeenCalledTimes(2);
+      expect(sseChannelSubscriberService.subscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ channel: 'sse:events:topic:chat:7', holderId: 'socket-1' }),
+      );
+      expect(sseChannelSubscriberService.subscribe).toHaveBeenCalledWith(
+        expect.objectContaining({ channel: 'sse:events:topic:chat:7', holderId: 'socket-2' }),
+      );
     });
 
-    afterEach(() => {
-      jest.useRealTimers();
+    it('should never forward a control message to the browser', async () => {
+      givenOpenConnections(['socket-1']);
+      const listener = await subscribeToUserAndGetListener();
+
+      listener(TOPIC_JOINED);
+
+      expect(sseConnectionsService.sendToUser).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
     });
 
-    it('should stop publishing after stopSimulation is called', () => {
-      service.startSimulation();
-      jest.advanceTimersByTime(1000);
+    it('should not subscribe again for a connection already in the topic', async () => {
+      givenOpenConnections(['socket-1']);
+      sseConnectionsService.addTopic.mockReturnValue(false);
+      const listener = await subscribeToUserAndGetListener();
 
-      service.stopSimulation();
-      jest.advanceTimersByTime(5000);
+      listener(TOPIC_JOINED);
 
-      expect(ssePublisherService.broadcast).toHaveBeenCalledTimes(1);
+      expect(sseChannelSubscriberService.subscribe).not.toHaveBeenCalled();
+    });
+
+    it("should drop the topic from the connection when subscribing to the topic's channel fails", async () => {
+      givenOpenConnections(['socket-1']);
+      const listener = await subscribeToUserAndGetListener();
+      sseChannelSubscriberService.subscribe.mockResolvedValue(false);
+
+      listener(TOPIC_JOINED);
+      await new Promise(process.nextTick);
+
+      expect(sseConnectionsService.removeTopic).toHaveBeenCalledWith({ socketId: 'socket-1', topic: 'chat:7' });
+    });
+
+    it('should keep the topic when its subscription failed but a later join already holds the channel again', async () => {
+      givenOpenConnections(['socket-1']);
+      const listener = await subscribeToUserAndGetListener();
+      sseChannelSubscriberService.subscribe.mockResolvedValue(false);
+      sseChannelSubscriberService.isSocketSubscribed.mockReturnValue(true);
+
+      listener(TOPIC_JOINED);
+      await new Promise(process.nextTick);
+
+      expect(sseConnectionsService.removeTopic).not.toHaveBeenCalled();
+    });
+
+    it("should remove the topic from the user's open connections and release the connection's hold on its channel", async () => {
+      givenOpenConnections(['socket-1']);
+      const listener = await subscribeToUserAndGetListener();
+
+      listener(TOPIC_LEFT);
+
+      expect(sseConnectionsService.removeTopic).toHaveBeenCalledWith({ socketId: 'socket-1', topic: 'chat:7' });
+      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith({
+        channel: 'sse:events:topic:chat:7',
+        holderId: 'socket-1',
+      });
+    });
+
+    it('should still release the hold for a connection whose topic was already removed', async () => {
+      givenOpenConnections(['socket-1']);
+      sseConnectionsService.removeTopic.mockReturnValue(false);
+      const listener = await subscribeToUserAndGetListener();
+
+      listener(TOPIC_LEFT);
+
+      expect(sseChannelSubscriberService.unsubscribe).toHaveBeenCalledWith({
+        channel: 'sse:events:topic:chat:7',
+        holderId: 'socket-1',
+      });
+    });
+
+    it('should hold changes for a connection whose topics are loading, and apply them once it completes', async () => {
+      const listener = await subscribeToUserAndGetListener();
+      let resolveUserTopics: (topics: string[]) => void = () => {};
+      sseTopicsService.getUserTopics.mockReturnValue(
+        new Promise<string[]>((resolve) => {
+          resolveUserTopics = resolve;
+        }),
+      );
+
+      const topicsPromise = service.subscribeToUserTopics(USER_CONNECTION);
+      listener(TOPIC_JOINED);
+      resolveUserTopics([]);
+      await topicsPromise;
+
+      expect(sseConnectionsService.addTopic).not.toHaveBeenCalled();
+
+      service.completeTopicsLoad(USER_CONNECTION);
+
+      expect(sseConnectionsService.addTopic).toHaveBeenCalledWith({ socketId: 'socket-1', topic: 'chat:7' });
+    });
+
+    it('should apply held changes in the order they arrived', async () => {
+      const listener = await subscribeToUserAndGetListener();
+      const calls: string[] = [];
+      sseConnectionsService.addTopic.mockImplementation(() => calls.push('add'));
+      sseConnectionsService.removeTopic.mockImplementation(() => calls.push('remove'));
+      let resolveUserTopics: (topics: string[]) => void = () => {};
+      sseTopicsService.getUserTopics.mockReturnValue(
+        new Promise<string[]>((resolve) => {
+          resolveUserTopics = resolve;
+        }),
+      );
+
+      const topicsPromise = service.subscribeToUserTopics(USER_CONNECTION);
+      listener(TOPIC_JOINED);
+      listener(TOPIC_LEFT);
+      resolveUserTopics([]);
+      await topicsPromise;
+      service.completeTopicsLoad(USER_CONNECTION);
+
+      expect(calls).toEqual(['add', 'remove']);
+    });
+
+    it('should stop holding changes once the load completes', async () => {
+      const listener = await subscribeToUserAndGetListener();
+      await service.subscribeToUserTopics(USER_CONNECTION);
+      service.completeTopicsLoad(USER_CONNECTION);
+
+      listener(TOPIC_JOINED);
+      service.completeTopicsLoad(USER_CONNECTION);
+
+      expect(sseConnectionsService.addTopic).not.toHaveBeenCalled();
+    });
+
+    it('should stop holding changes when loading the topics fails', async () => {
+      const listener = await subscribeToUserAndGetListener();
+      sseTopicsService.getUserTopics.mockRejectedValue(new Error('Redis down'));
+      await service.subscribeToUserTopics(USER_CONNECTION);
+
+      listener(TOPIC_JOINED);
+      service.completeTopicsLoad(USER_CONNECTION);
+
+      expect(sseConnectionsService.addTopic).not.toHaveBeenCalled();
     });
   });
 
   describe('cleanup', () => {
-    it('should unsubscribe from the SSE channel', async () => {
-      await service.subscribeToEvents();
-
-      await service.cleanup();
-
-      expect(redisSubClient.unsubscribe).toHaveBeenCalledWith(SSE_EVENTS_CHANNEL);
-    });
-
-    it('should unsubscribe from every user channel', async () => {
+    it('should unsubscribe from every channel this node holds', async () => {
       await service.cleanup();
 
       expect(sseChannelSubscriberService.unsubscribeAll).toHaveBeenCalled();
-    });
-
-    it('should stop the simulation', async () => {
-      jest.useFakeTimers();
-      service.startSimulation();
-
-      await service.cleanup();
-      jest.advanceTimersByTime(5000);
-
-      expect(ssePublisherService.broadcast).not.toHaveBeenCalled();
-      jest.useRealTimers();
     });
   });
 });

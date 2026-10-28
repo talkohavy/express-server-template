@@ -1,146 +1,152 @@
 import { isObject } from '@src/common/utils/isObject';
 import { parseJson } from '@src/common/utils/parseJson';
-import { getTopicEventsChannel, getUserEventsChannel, SSE_EVENTS_CHANNEL } from '@src/core/services/sse-publisher';
-import { SSE_SIMULATION_INTERVAL_MS } from '../../logic/constants';
+import { getTopicEventsChannel, getUserEventsChannel } from '@src/core/services/sse-publisher';
+import { SseControlTypes, VALID_SSE_CONTROL_TYPES } from '@src/core/services/sse-topics';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
-import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
-import type { SseEnvelope, SsePublisherService } from '@src/core/services/sse-publisher';
-import type { SseTopicsService } from '@src/core/services/sse-topics';
+import type { SseEnvelope } from '@src/core/services/sse-publisher';
+import type { SseControlMessage, SseTopicsService } from '@src/core/services/sse-topics';
 import type { SseChannelSubscriberService } from '../sse-channel-subscriber';
-import type { SseConnectionsService } from '../sse-connections';
-import type { ForwardEnvelopeToTopicProps, ForwardEnvelopeToUserProps } from './types';
+import type {
+  JoinTopicProps,
+  LeaveTopicProps,
+  SseConnectionsService,
+  StartHoldingControlMessagesProps,
+  StopHoldingControlMessagesProps,
+  SubscribeToTopicEventsProps,
+} from '../sse-connections';
+import type {
+  ApplyControlMessageProps,
+  CompleteTopicsLoadProps,
+  ForwardEnvelopeToTopicProps,
+  HandleControlMessageProps,
+  HandleUserChannelMessageProps,
+  SubscribeToUserEventsProps,
+  SubscribeToUserTopicsProps,
+} from './types';
 
 /**
  * Bridges Redis pub/sub and this node's SSE connections (the receiving side; publishing is SsePublisherService).
- * - Broadcast: every node subscribes to the same channel, so a message published from any node reaches every client.
  * - Per user: a node subscribes to a user's channel only while it holds a connection of that user.
  * - Per topic: a node subscribes to a topic's channel only while it holds a connection in that topic.
+ *
+ * The user's channel also carries control messages (topic-joined / topic-left), published by SseTopicsService
+ * when the user's topics change. They update the user's open connections and are never forwarded to the browser.
  */
 export class ServerSentEventsService {
-  private simulationInterval: NodeJS.Timeout | null = null;
+  /**
+   * Why this object is needed?
+   *
+   * A control message is addressed to a user, not a socket.
+   * It arrives on sse:events:user:{userId}, and handleControlMessage gets only the userId.
+   * It then has to find this user's sockets that are still loading (that are still subscribing to topics).
+   */
+  private readonly pendingControlMessagesByUserId = new Map<string, Map<string, SseControlMessage[]>>();
 
   constructor(
     private readonly logger: LoggerService,
     private readonly sseConnectionsService: SseConnectionsService,
     private readonly sseChannelSubscriberService: SseChannelSubscriberService,
-    private readonly ssePublisherService: SsePublisherService,
     private readonly sseTopicsService: SseTopicsService,
-    private readonly redisSubClient: RedisClientType,
   ) {}
 
-  async subscribeToEvents(): Promise<void> {
-    await this.redisSubClient.subscribe(SSE_EVENTS_CHANNEL, this.forwardEnvelopeToAllConnections.bind(this));
-
-    this.logger.info(`Subscribed to Redis pub/sub channel: ${SSE_EVENTS_CHANNEL}`);
-  }
-
   /**
-   * Call when a connection of the user opens on this node. Reference-counted per user.
+   * Call when a connection of the user opens on this node.
    * @returns true once this node receives the user's messages, false if subscribing failed.
    */
-  async subscribeToUserEvents(userId: string): Promise<boolean> {
+  async subscribeToUserEvents(props: SubscribeToUserEventsProps): Promise<boolean> {
+    const { userId, socketId } = props;
+
     const userEventsChannel = getUserEventsChannel(userId);
 
     const isSubscribed = await this.sseChannelSubscriberService.subscribe({
-      channel: userEventsChannel,
-      listener: (payload) => this.forwardEnvelopeToUser({ userId, payload }),
+      channelName: userEventsChannel,
+      socketId,
+      listener: (payload) => this.handleUserChannelMessage({ userId, payload }),
     });
 
     return isSubscribed;
   }
 
-  /**
-   * Call when a connection of the user closes on this node.
-   */
-  async unsubscribeFromUserEvents(userId: string): Promise<void> {
-    const channel = getUserEventsChannel(userId);
+  async subscribeToUserTopics(props: SubscribeToUserTopicsProps): Promise<string[] | null> {
+    const { userId, socketId } = props;
 
-    await this.sseChannelSubscriberService.unsubscribe(channel);
-  }
+    // Step 1: Start holding control messages for the socket.
+    this.startHoldingControlMessages({ userId, socketId });
 
-  /**
-   * Call when a connection of the user opens on this node, so it receives the events of the user's topics.
-   * Reference-counted per topic.
-   * @returns The topics, all subscribed. null if reading or subscribing failed, in which case nothing is left subscribed.
-   */
-  async subscribeToUserTopics(userId: string): Promise<string[] | null> {
+    // Step 2: Read the user's topics from Redis.
     const topics = await this.readUserTopics(userId);
 
-    if (!topics) return null;
+    // Step 3: If the user has no topics, stop holding control messages and return null.
+    if (!topics) {
+      this.stopHoldingControlMessages({ userId, socketId });
 
-    const isSubscribedResults = await Promise.all(topics.map((topic) => this.subscribeToTopicEvents(topic)));
+      return null;
+    }
 
-    const isEveryTopicSubscribed = isSubscribedResults.every(Boolean);
+    // Step 4: redis subscribe to each topic.
+    const isTopicSubscribedResults = await Promise.all(
+      topics.map((topic) => this.subscribeToTopicEvents({ socketId, topic })),
+    );
+
+    // Step 5: If all topics are subscribed, return the topics.
+    const isEveryTopicSubscribed = isTopicSubscribedResults.every(Boolean);
 
     if (isEveryTopicSubscribed) return topics;
 
-    const subscribedTopics = topics.filter((_topic, index) => isSubscribedResults[index]);
-
-    await this.unsubscribeFromTopics(subscribedTopics);
+    // Step 6: If not all topics are subscribed, stop holding control messages and return null.
+    this.stopHoldingControlMessages({ userId, socketId });
 
     return null;
   }
 
   /**
-   * Call when a connection closes on this node, with the topics it held.
+   * Releases every channel the socketId holds (its user's channel and its topics' channels),
+   * whatever happened to it before. Idempotent. Call when the connection closes, or fails to open.
    */
-  async unsubscribeFromTopics(topics: string[]): Promise<void> {
-    const topicEventsChannels = topics.map(getTopicEventsChannel);
+  async releaseConnectionSubscriptions(socketId: string): Promise<void> {
+    await this.sseChannelSubscriberService.unsubscribeSocketId(socketId);
+  }
 
-    await Promise.all(topicEventsChannels.map((channel) => this.sseChannelSubscriberService.unsubscribe(channel)));
+  /**
+   * Call right after registering the connection, with no `await` in between, or when dropping it before registering.
+   * Applies the topic changes held since {@link subscribeToUserTopics} to the connection, in the order they arrived.
+   */
+  completeTopicsLoad(props: CompleteTopicsLoadProps): void {
+    const { socketId } = props;
+
+    const controlMessages = this.stopHoldingControlMessages(props);
+
+    controlMessages.forEach((controlMessage) => {
+      this.applyControlMessage({ socketId, controlMessage });
+    });
   }
 
   /**
    * Call on shutdown, before closing connections, so no new messages arrive while they are being closed.
    */
   async cleanup(): Promise<void> {
-    this.stopSimulation();
-
-    await this.redisSubClient.unsubscribe(SSE_EVENTS_CHANNEL);
-
-    this.logger.info(`Unsubscribed from Redis pub/sub channel: ${SSE_EVENTS_CHANNEL}`);
-
     await this.sseChannelSubscriberService.unsubscribeAll();
   }
 
-  /**
-   * Dev-only helper: broadcasts the current time every second.
-   */
-  startSimulation(): void {
-    if (this.simulationInterval) return;
-
-    this.simulationInterval = setInterval(async () => {
-      try {
-        await this.ssePublisherService.broadcast({ data: { time: new Date().toISOString() } });
-      } catch (error) {
-        this.logger.error('SSE simulation failed to broadcast', { error });
-      }
-    }, SSE_SIMULATION_INTERVAL_MS);
-  }
-
-  stopSimulation(): void {
-    if (!this.simulationInterval) return;
-
-    clearInterval(this.simulationInterval);
-
-    this.simulationInterval = null;
-  }
-
-  private forwardEnvelopeToAllConnections(payload: string): void {
-    const message = this.envelopeToSseMessage(payload);
-
-    if (!message) return;
-
-    this.sseConnectionsService.sendToAll(message);
-  }
-
-  private forwardEnvelopeToUser(props: ForwardEnvelopeToUserProps): void {
+  private handleUserChannelMessage(props: HandleUserChannelMessageProps): void {
     const { userId, payload } = props;
 
-    const message = this.envelopeToSseMessage(payload);
+    // Step 1: Parse the payload.
+    const parsedPayload = parseJson<unknown>(payload);
 
-    if (!message) return;
+    // Step 2: If the payload is a control message, handle it.
+    if (this.isControlMessage(parsedPayload)) {
+      return void this.handleControlMessage({ userId, controlMessage: parsedPayload });
+    }
+
+    // Step 3: If the payload isn't a valid envelope either, drop it.
+    if (!this.isValidEnvelope(parsedPayload)) {
+      return void this.logger.error('SSE pub/sub: invalid envelope received', { payload });
+    }
+
+    // Step 4: Forward the envelope to the user's connections.
+    const message = this.envelopeToSseMessage(parsedPayload);
 
     this.sseConnectionsService.sendToUser({ userId, message });
   }
@@ -148,11 +154,149 @@ export class ServerSentEventsService {
   private forwardEnvelopeToTopic(props: ForwardEnvelopeToTopicProps): void {
     const { topic, payload } = props;
 
-    const message = this.envelopeToSseMessage(payload);
+    const parsedPayload = parseJson<unknown>(payload);
 
-    if (!message) return;
+    if (!this.isValidEnvelope(parsedPayload)) {
+      return void this.logger.error('SSE pub/sub: invalid envelope received', { payload });
+    }
+
+    const message = this.envelopeToSseMessage(parsedPayload);
 
     this.sseConnectionsService.sendToTopic({ topic, message });
+  }
+
+  /**
+   * Applies the change to every open connection of the user on this node,
+   * and holds it for the user's connections whose topics are still loading.
+   */
+  private handleControlMessage(props: HandleControlMessageProps): void {
+    const { userId, controlMessage } = props;
+
+    // Step 1: Get pendingControlMessagesBySocketId by userId.
+    const pendingControlMessagesBySocketId = this.pendingControlMessagesByUserId.get(userId);
+
+    // Step 2: Add the control message to all user sockets that are still loading.
+    if (pendingControlMessagesBySocketId) {
+      pendingControlMessagesBySocketId.forEach((pendingControlMessages) => {
+        pendingControlMessages.push(controlMessage);
+      });
+    }
+
+    // Step 3: Get userSocketIds.
+    const userSocketIds = this.sseConnectionsService.getSocketIdsByUserId().get(userId);
+
+    // Step 4: Apply the control message to all user sockets that are still loading.
+    if (userSocketIds) {
+      userSocketIds.forEach((socketId) => {
+        this.applyControlMessage({ socketId, controlMessage });
+      });
+    }
+  }
+
+  /**
+   * A no-op if the connection isn't registered, or is already in that state (e.g. the change was also in the topics it read).
+   */
+  private async applyControlMessage(props: ApplyControlMessageProps): Promise<void> {
+    const { socketId, controlMessage } = props;
+    const { control, topic } = controlMessage;
+
+    // Case 1: join topic
+    if (control === SseControlTypes.TopicJoined) {
+      await this.joinTopic({ socketId, topic });
+
+      return;
+    }
+
+    // Case 2: leave topic
+    await this.leaveTopic({ socketId, topic });
+  }
+
+  /**
+   * @description
+   * Joins a socketId to a topic.
+   *
+   * Does nothing when:
+   *
+   * 1. a connection that isn't registered (it was dropped)
+   * 2. socketId is already in the topic.
+   */
+  private async joinTopic(props: JoinTopicProps): Promise<void> {
+    const { socketId, topic } = props;
+
+    // Step 1: Add the topic to the connection.
+    const isAdded = this.sseConnectionsService.addTopic({ socketId, topic });
+
+    // Step 2: If the topic is not added, return.
+    if (!isAdded) return;
+
+    // Step 3: Subscribe to the topic events.
+    const isSubscribed = await this.subscribeToTopicEvents({ socketId, topic });
+
+    // Step 4: If the topic is not subscribed, remove the topic from the connection.
+    if (isSubscribed) return;
+
+    // Step 5: If the topic is subscribed, check if the connection is still holding the channel.
+    // Stop routing the topic to the connection, unless a later join made it hold the channel again.
+    const topicEventsChannel = getTopicEventsChannel(topic);
+
+    const isHolding = this.sseChannelSubscriberService.isSocketSubscribed({
+      socketId,
+      channelName: topicEventsChannel,
+    });
+
+    if (!isHolding) {
+      this.sseConnectionsService.removeTopic({ socketId, topic });
+    }
+  }
+
+  /**
+   * Both steps are idempotent, so this is safe whatever state the connection is in.
+   */
+  private async leaveTopic(props: LeaveTopicProps): Promise<void> {
+    const { socketId, topic } = props;
+
+    this.sseConnectionsService.removeTopic({ socketId, topic });
+
+    const topicEventsChannel = getTopicEventsChannel(topic);
+
+    await this.sseChannelSubscriberService.unsubscribe({ channelName: topicEventsChannel, socketId });
+  }
+
+  private startHoldingControlMessages(props: StartHoldingControlMessagesProps): void {
+    const { userId, socketId } = props;
+
+    let pendingControlMessagesBySocketId = this.pendingControlMessagesByUserId.get(userId);
+
+    if (!pendingControlMessagesBySocketId) {
+      pendingControlMessagesBySocketId = new Map<string, SseControlMessage[]>();
+      this.pendingControlMessagesByUserId.set(userId, pendingControlMessagesBySocketId);
+    }
+
+    pendingControlMessagesBySocketId.set(socketId, []);
+  }
+
+  /**
+   * @returns The control messages held for the connection.
+   */
+  private stopHoldingControlMessages(props: StopHoldingControlMessagesProps): SseControlMessage[] {
+    const { userId, socketId } = props;
+
+    // Step 1: Get all the socketIds of a user, each holding an array of pending control messages.
+    const pendingControlMessagesBySocketId = this.pendingControlMessagesByUserId.get(userId);
+
+    // Step 2: Extract the pending control messages themselves.
+    const pendingControlMessages = pendingControlMessagesBySocketId?.get(socketId) ?? [];
+
+    // Step 3: Delete the socketId from the map.
+    pendingControlMessagesBySocketId?.delete(socketId);
+
+    // Step 4: Delete the user from the map if no more socketIds are holding control messages.
+    if (pendingControlMessagesBySocketId?.size === 0) {
+      this.pendingControlMessagesByUserId.delete(userId);
+    }
+
+    // Step 5: Return the pending control messages.
+    return pendingControlMessages;
   }
 
   /**
@@ -170,29 +314,21 @@ export class ServerSentEventsService {
     }
   }
 
-  private async subscribeToTopicEvents(topic: string): Promise<boolean> {
+  private async subscribeToTopicEvents(props: SubscribeToTopicEventsProps): Promise<boolean> {
+    const { socketId, topic } = props;
+
     const topicEventsChannel = getTopicEventsChannel(topic);
 
     const isSubscribed = await this.sseChannelSubscriberService.subscribe({
-      channel: topicEventsChannel,
+      channelName: topicEventsChannel,
+      socketId,
       listener: (payload) => this.forwardEnvelopeToTopic({ topic, payload }),
     });
 
     return isSubscribed;
   }
 
-  /**
-   * @returns The formatted SSE message, or null (logged) if the payload isn't a valid envelope.
-   */
-  private envelopeToSseMessage(payload: string): string | null {
-    const envelope = parseJson<SseEnvelope>(payload);
-
-    if (!this.isValidEnvelope(envelope)) {
-      this.logger.error('SSE pub/sub: invalid envelope received', { payload });
-
-      return null;
-    }
-
+  private envelopeToSseMessage(envelope: SseEnvelope): string {
     const { event, data } = envelope;
 
     const dataStringified = JSON.stringify(data);
@@ -207,5 +343,13 @@ export class ServerSentEventsService {
     const { event } = envelope;
 
     return typeof event === 'string' && event.length > 0 && 'data' in envelope;
+  }
+
+  private isControlMessage(parsedPayload: unknown): parsedPayload is SseControlMessage {
+    if (!isObject(parsedPayload)) return false;
+
+    const { control, topic } = parsedPayload;
+
+    return typeof control === 'string' && VALID_SSE_CONTROL_TYPES.has(control) && typeof topic === 'string';
   }
 }

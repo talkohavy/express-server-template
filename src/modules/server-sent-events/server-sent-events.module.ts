@@ -16,7 +16,6 @@ import type { ModuleFactory } from '@src/lib/lucky-server';
  * - config-service plugin
  * - logger plugin
  * - redis plugin
- * - sse-publisher plugin
  * - sse-topics plugin
  */
 export class ServerSentEventsModule implements ModuleFactory {
@@ -27,7 +26,7 @@ export class ServerSentEventsModule implements ModuleFactory {
   constructor(private readonly app: Application) {}
 
   async init(): Promise<void> {
-    const { logger, configService, redis, ssePublisher, sseTopics } = this.app;
+    const { logger, redis, sseTopics } = this.app;
     const { pub: redisPubClient, sub: redisSubClient } = redis;
 
     this.sseConnectionsService = new SseConnectionsService(logger);
@@ -41,24 +40,14 @@ export class ServerSentEventsModule implements ModuleFactory {
       logger,
       this.sseConnectionsService,
       sseChannelSubscriberService,
-      ssePublisher,
       sseTopics,
-      redisSubClient,
     );
-
-    await this.serverSentEventsService.subscribeToEvents();
 
     this.sseConnectionLimiterService.start();
 
     // SSE always attaches routes directly - clients connect to this endpoint
     // without going through the BFF (persistent connections don't proxy well)
     this.attachControllers();
-
-    const isDev = configService.get<boolean>(ConfigKeys.IsDev);
-
-    if (isDev && process.env.SSE_SIMULATION === 'true') {
-      this.serverSentEventsService.startSimulation();
-    }
   }
 
   /**

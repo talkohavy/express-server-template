@@ -6,8 +6,8 @@ export type SseConnection = {
   response: Response;
   connectedAt: number;
   /**
-   * The topics this connection receives events of.
-   * Left intact on unregister, so the close handler can still release their subscriptions.
+   * The topics routed to this connection. Routing only: the Redis subscriptions it holds are tracked by
+   * SseChannelSubscriberService under its socketId, and released from there.
    */
   topics: Set<string>;
   /**

@@ -236,8 +236,22 @@ describe('SseConnectionsService', () => {
 
       expect(response.write).not.toHaveBeenCalled();
     });
+  });
 
-    it("should keep the connection's topics after unregister, so its subscriptions can still be released", () => {
+  describe('addTopic', () => {
+    it('should make the connection receive the topic', () => {
+      const response = createResponseMock();
+      const connection = service.register({ socketId: randomUUID(), response, userId: USER_ID });
+
+      const actualResult = service.addTopic({ socketId: connection.socketId, topic: 'chat:7' });
+      service.sendToTopic({ topic: 'chat:7', message: 'data: x\n\n' });
+
+      expect(actualResult).toBe(true);
+      expect(connection.topics.has('chat:7')).toBe(true);
+      expect(response.write).toHaveBeenCalledWith('data: x\n\n');
+    });
+
+    it('should return false when the connection is already in the topic', () => {
       const connection = service.register({
         socketId: randomUUID(),
         response: createResponseMock(),
@@ -245,11 +259,58 @@ describe('SseConnectionsService', () => {
         topics: ['chat:7'],
       });
 
-      service.unregister(connection.socketId);
+      const actualResult = service.addTopic({ socketId: connection.socketId, topic: 'chat:7' });
 
-      const actualResult = Array.from(connection.topics);
+      expect(actualResult).toBe(false);
+    });
 
-      expect(actualResult).toEqual(['chat:7']);
+    it('should return false for an unknown connection', () => {
+      const actualResult = service.addTopic({ socketId: 'unknown', topic: 'chat:7' });
+
+      expect(actualResult).toBe(false);
+    });
+  });
+
+  describe('removeTopic', () => {
+    it('should stop the connection from receiving the topic', () => {
+      const response = createResponseMock();
+      const connection = service.register({ socketId: randomUUID(), response, userId: USER_ID, topics: ['chat:7'] });
+
+      const actualResult = service.removeTopic({ socketId: connection.socketId, topic: 'chat:7' });
+      service.sendToTopic({ topic: 'chat:7', message: 'data: x\n\n' });
+
+      expect(actualResult).toBe(true);
+      expect(connection.topics.has('chat:7')).toBe(false);
+      expect(response.write).not.toHaveBeenCalled();
+    });
+
+    it('should return false when the connection is not in the topic', () => {
+      const connection = service.register({ socketId: randomUUID(), response: createResponseMock(), userId: USER_ID });
+
+      const actualResult = service.removeTopic({ socketId: connection.socketId, topic: 'chat:7' });
+
+      expect(actualResult).toBe(false);
+    });
+
+    it('should keep delivering the topic to its other connections', () => {
+      const leaving = service.register({
+        socketId: randomUUID(),
+        response: createResponseMock(),
+        userId: USER_ID,
+        topics: ['chat:7'],
+      });
+      const stayingResponse = createResponseMock();
+      service.register({
+        socketId: randomUUID(),
+        response: stayingResponse,
+        userId: OTHER_USER_ID,
+        topics: ['chat:7'],
+      });
+
+      service.removeTopic({ socketId: leaving.socketId, topic: 'chat:7' });
+      service.sendToTopic({ topic: 'chat:7', message: 'data: x\n\n' });
+
+      expect(stayingResponse.write).toHaveBeenCalledWith('data: x\n\n');
     });
   });
 

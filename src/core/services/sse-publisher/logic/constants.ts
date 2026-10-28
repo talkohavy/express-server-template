@@ -1,9 +1,4 @@
 /**
- * Every node with SSE connections subscribes to this channel. A message published to it reaches every client.
- */
-export const SSE_EVENTS_CHANNEL = 'sse:events';
-
-/**
  * One channel per user: `sse:events:user:{userId}`.
  * A node subscribes to it only while it holds at least one connection of that user,
  * so a message for a user reaches only the nodes that can deliver it.

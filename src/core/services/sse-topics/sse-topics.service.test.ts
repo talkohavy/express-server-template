@@ -1,14 +1,14 @@
+import { ADD_USER_TO_TOPIC_SCRIPT, REMOVE_USER_FROM_TOPIC_SCRIPT } from './logic/lua-scripts';
 import { SseTopicsService } from './sse-topics.service';
 import type { RedisClientType } from 'redis';
 
 describe('SseTopicsService', () => {
   let service: SseTopicsService;
-  let redisPubClient: { sAdd: jest.Mock; sRem: jest.Mock; sMembers: jest.Mock };
+  let redisPubClient: { sendCommand: jest.Mock; sMembers: jest.Mock };
 
   beforeEach(() => {
     redisPubClient = {
-      sAdd: jest.fn().mockResolvedValue(1),
-      sRem: jest.fn().mockResolvedValue(1),
+      sendCommand: jest.fn().mockResolvedValue(1),
       sMembers: jest.fn().mockResolvedValue([]),
     };
 
@@ -16,10 +16,22 @@ describe('SseTopicsService', () => {
   });
 
   describe('addUserToTopic', () => {
-    it("should add the topic to the user's topics set", async () => {
+    it("should add the topic to the user's set and publish topic-joined on the user's channel, in one script", async () => {
+      const expectedResult = [
+        'EVAL',
+        ADD_USER_TO_TOPIC_SCRIPT,
+        '1',
+        'sse:user:user-1:topics',
+        'chat:7',
+        'sse:events:user:user-1',
+        JSON.stringify({ control: 'topic-joined', topic: 'chat:7' }),
+      ];
+
       await service.addUserToTopic({ userId: 'user-1', topic: 'chat:7' });
 
-      expect(redisPubClient.sAdd).toHaveBeenCalledWith('sse:user:user-1:topics', 'chat:7');
+      const [actualResult] = redisPubClient.sendCommand.mock.calls[0];
+
+      expect(actualResult).toEqual(expectedResult);
     });
 
     it('should return true when the user was added', async () => {
@@ -29,7 +41,7 @@ describe('SseTopicsService', () => {
     });
 
     it('should return false when the user was already in the topic', async () => {
-      redisPubClient.sAdd.mockResolvedValue(0);
+      redisPubClient.sendCommand.mockResolvedValue(0);
 
       const actualResult = await service.addUserToTopic({ userId: 'user-1', topic: 'chat:7' });
 
@@ -38,10 +50,22 @@ describe('SseTopicsService', () => {
   });
 
   describe('removeUserFromTopic', () => {
-    it("should remove the topic from the user's topics set", async () => {
+    it("should remove the topic from the user's set and publish topic-left on the user's channel, in one script", async () => {
+      const expectedResult = [
+        'EVAL',
+        REMOVE_USER_FROM_TOPIC_SCRIPT,
+        '1',
+        'sse:user:user-1:topics',
+        'chat:7',
+        'sse:events:user:user-1',
+        JSON.stringify({ control: 'topic-left', topic: 'chat:7' }),
+      ];
+
       await service.removeUserFromTopic({ userId: 'user-1', topic: 'chat:7' });
 
-      expect(redisPubClient.sRem).toHaveBeenCalledWith('sse:user:user-1:topics', 'chat:7');
+      const [actualResult] = redisPubClient.sendCommand.mock.calls[0];
+
+      expect(actualResult).toEqual(expectedResult);
     });
 
     it('should return true when the user was removed', async () => {
@@ -51,7 +75,7 @@ describe('SseTopicsService', () => {
     });
 
     it("should return false when the user wasn't in the topic", async () => {
-      redisPubClient.sRem.mockResolvedValue(0);
+      redisPubClient.sendCommand.mockResolvedValue(0);
 
       const actualResult = await service.removeUserFromTopic({ userId: 'user-1', topic: 'chat:7' });
 

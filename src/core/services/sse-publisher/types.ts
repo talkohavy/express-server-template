@@ -6,7 +6,7 @@ export type SseEnvelope = {
   data: unknown;
 };
 
-export type BroadcastProps = {
+export type SseEventProps = {
   /**
    * @default 'message'
    */
@@ -17,11 +17,11 @@ export type BroadcastProps = {
   data: unknown;
 };
 
-export type SendToUserProps = BroadcastProps & {
+export type SendToUserProps = SseEventProps & {
   userId: string;
 };
 
-export type SendToTopicProps = BroadcastProps & {
+export type SendToTopicProps = SseEventProps & {
   /**
    * Any string, e.g. `chat:7`.
    */

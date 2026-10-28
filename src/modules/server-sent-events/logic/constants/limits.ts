@@ -18,13 +18,13 @@ export const SSE_MAX_CONNECTIONS_PER_USER = 10;
  * What actually limits a pod:
  * 1. Memory: ~20-50KB per idle connection. Worst case is connections x SSE_MAX_BUFFERED_BYTES,
  *    so lower the buffer cap when raising this one.
- * 2. Event-loop time: a broadcast is one write per connection (100k writes blocks the loop for a few hundred ms).
- *    Heartbeats are negligible. Targeted sends are cheap.
+ * 2. Event-loop time: a heartbeat writes once per connection. At this cap that stays cheap (one pass every 25s).
+ *    Sends to a user or a topic touch far fewer connections.
  *
  * Bigger isn't always better: when a pod dies or restarts, all its clients reconnect onto other live pods at once.
  * 20k-50k per pod keeps that reconnect storm manageable.
  *
- * To pick the real number: load-test one pod (idle connections + broadcasts at the expected rate),
+ * To pick the real number: load-test one pod (idle connections + heartbeats and targeted sends at the expected rate),
  * watch memory and event-loop delay, and set the cap at ~70% of where they degrade.
  * Autoscale on connection count, not CPU (idle SSE pods use almost no CPU).
  */

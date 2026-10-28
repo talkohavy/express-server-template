@@ -11,8 +11,15 @@ import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseConnection } from '../../types';
 import type {
+  AddTopicProps,
+  AddToTopicIndexProps,
+  AddToTopicsIndexProps,
+  AddToUserIndexProps,
   DestroyConnectionProps,
   RegisterConnectionProps,
+  RemoveFromTopicsIndexProps,
+  RemoveFromUserIndexProps,
+  RemoveTopicProps,
   SendToConnectionProps,
   SendToTopicProps,
   SendToUserProps,
@@ -35,10 +42,12 @@ export class SseConnectionsService {
   /**
    * A user can hold several connections at once (one per open tab or device).
    * Only users with at least one connection on this node have an entry.
+   * Good for quickly sending a message to all connections a user has on this node.
    */
   private readonly socketIdsByUserId = new Map<string, Set<string>>();
   /**
    * Only topics with at least one connection on this node have an entry.
+   * Good for quickly sending a message to all connections in a topic on this node.
    */
   private readonly socketIdsByTopic = new Map<string, Set<string>>();
   private heartbeatInterval: NodeJS.Timeout | null = null;
@@ -48,7 +57,7 @@ export class SseConnectionsService {
   register(props: RegisterConnectionProps): SseConnection {
     const { socketId, userId, response, topics = [] } = props;
 
-    const connection: SseConnection = {
+    const socketConnection: SseConnection = {
       socketId,
       userId,
       response,
@@ -57,9 +66,9 @@ export class SseConnectionsService {
       drainTimeout: null,
     };
 
-    this.connections.set(socketId, connection);
-    this.addToUserIndex(connection);
-    this.addToTopicsIndex(connection);
+    this.connections.set(socketId, socketConnection);
+    this.addToUserIndex(socketConnection);
+    this.addToTopicsIndex(socketConnection);
 
     this.startHeartbeat();
 
@@ -69,7 +78,7 @@ export class SseConnectionsService {
       connectionsCount: this.connections.size,
     });
 
-    return connection;
+    return socketConnection;
   }
 
   unregister(socketId: string): void {
@@ -91,7 +100,41 @@ export class SseConnectionsService {
   }
 
   /**
-   * @returns true if the message was written, false if the connection is unknown, closed, or was just destroyed for being too slow.
+   * Adds a topic to an open socket's connection.
+   * @returns `true` if added, `false` if the socket is unknown or already in the topic.
+   */
+  addTopic(props: AddTopicProps): boolean {
+    const { socketId, topic } = props;
+
+    const connection = this.connections.get(socketId);
+
+    if (!connection || connection.topics.has(topic)) return false;
+
+    connection.topics.add(topic);
+    this.addToTopicIndex({ socketId, topic });
+
+    return true;
+  }
+
+  /**
+   * Removes a topic from an open socket's connection.
+   * @returns `true` if removed, `false` if the socket is unknown or not in the topic.
+   */
+  removeTopic(props: RemoveTopicProps): boolean {
+    const { socketId, topic } = props;
+
+    const connection = this.connections.get(socketId);
+
+    if (!connection?.topics.has(topic)) return false;
+
+    connection.topics.delete(topic);
+    this.removeFromTopicIndex({ socketId, topic });
+
+    return true;
+  }
+
+  /**
+   * @returns `true` if the message was written, `false` if the connection is unknown, closed, or was just destroyed for being too slow.
    */
   send(props: SendToConnectionProps): boolean {
     const { socketId, message } = props;
@@ -191,7 +234,7 @@ export class SseConnectionsService {
    * ## **Slow client**
    *
    * With SSE, the server keeps an HTTP response open and keeps writing messages to it:
-   * heartbeat pings and broadcasts from sendToAll. Usually the client reads them right away.
+   * heartbeat pings, and events for that user or their topics. Usually the client reads them right away.
    * A **slow client** is one that can't keep up. It might be on a bad mobile network,
    * sitting in a frozen browser tab, or behind a stalled proxy.
    * The server keeps sending, but the data isn't getting through.
@@ -320,8 +363,8 @@ export class SseConnectionsService {
     }
   }
 
-  private addToUserIndex(connection: SseConnection): void {
-    const { socketId, userId } = connection;
+  private addToUserIndex(props: AddToUserIndexProps): void {
+    const { userId, socketId } = props;
 
     const userSocketIds = this.socketIdsByUserId.get(userId) ?? new Set<string>();
 
@@ -330,8 +373,8 @@ export class SseConnectionsService {
     this.socketIdsByUserId.set(userId, userSocketIds);
   }
 
-  private removeFromUserIndex(connection: SseConnection): void {
-    const { socketId, userId } = connection;
+  private removeFromUserIndex(props: RemoveFromUserIndexProps): void {
+    const { userId, socketId } = props;
 
     const userSocketIds = this.socketIdsByUserId.get(userId);
 
@@ -345,32 +388,40 @@ export class SseConnectionsService {
     }
   }
 
-  private addToTopicsIndex(connection: SseConnection): void {
-    const { socketId, topics } = connection;
+  private addToTopicsIndex(props: AddToTopicsIndexProps): void {
+    const { topics, socketId } = props;
 
-    topics.forEach((topic) => {
-      const topicSocketIds = this.socketIdsByTopic.get(topic) ?? new Set<string>();
-
-      topicSocketIds.add(socketId);
-
-      this.socketIdsByTopic.set(topic, topicSocketIds);
-    });
+    topics.forEach((topic) => this.addToTopicIndex({ topic, socketId }));
   }
 
-  private removeFromTopicsIndex(connection: SseConnection): void {
-    const { socketId, topics } = connection;
+  private removeFromTopicsIndex(props: SseConnection): void {
+    const { topics, socketId } = props;
 
-    topics.forEach((topic) => {
-      const topicSocketIds = this.socketIdsByTopic.get(topic);
+    topics.forEach((topic) => this.removeFromTopicIndex({ socketId, topic }));
+  }
 
-      if (!topicSocketIds) return;
+  private addToTopicIndex(props: AddToTopicIndexProps): void {
+    const { topic, socketId } = props;
 
-      topicSocketIds.delete(socketId);
+    const topicSocketIds = this.socketIdsByTopic.get(topic) ?? new Set<string>();
 
-      if (topicSocketIds.size === 0) {
-        this.socketIdsByTopic.delete(topic);
-      }
-    });
+    topicSocketIds.add(socketId);
+
+    this.socketIdsByTopic.set(topic, topicSocketIds);
+  }
+
+  private removeFromTopicIndex(props: RemoveFromTopicsIndexProps): void {
+    const { socketId, topic } = props;
+
+    const topicSocketIds = this.socketIdsByTopic.get(topic);
+
+    if (!topicSocketIds) return;
+
+    topicSocketIds.delete(socketId);
+
+    if (topicSocketIds.size === 0) {
+      this.socketIdsByTopic.delete(topic);
+    }
   }
 
   private startHeartbeat(): void {
