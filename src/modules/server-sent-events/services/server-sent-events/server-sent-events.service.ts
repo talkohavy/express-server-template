@@ -195,20 +195,25 @@ export class ServerSentEventsService {
 
   /**
    * A no-op if the connection isn't registered, or is already in that state (e.g. the change was also in the topics it read).
+   * Never rejects (failures are logged): callers don't await it, and an unhandled rejection would crash the process.
    */
   private async applyControlMessage(props: ApplyControlMessageProps): Promise<void> {
     const { socketId, controlMessage } = props;
     const { control, topic } = controlMessage;
 
-    // Case 1: join topic
-    if (control === SseControlTypes.TopicJoined) {
-      await this.joinTopic({ socketId, topic });
+    try {
+      // Case 1: join topic
+      if (control === SseControlTypes.TopicJoined) {
+        await this.joinTopic({ socketId, topic });
 
-      return;
+        return;
+      }
+
+      // Case 2: leave topic
+      await this.leaveTopic({ socketId, topic });
+    } catch (error) {
+      this.logger.error('Failed to apply SSE control message', { socketId, controlMessage, error });
     }
-
-    // Case 2: leave topic
-    await this.leaveTopic({ socketId, topic });
   }
 
   /**

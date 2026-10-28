@@ -264,6 +264,21 @@ describe('ServerSentEventsService', () => {
       expect(sseConnectionsService.removeTopic).not.toHaveBeenCalled();
     });
 
+    it('should log, not reject, when applying a topic change throws', async () => {
+      givenOpenConnections(['socket-1']);
+      const listener = await subscribeToUserAndGetListener();
+      const error = new Error('connection lost');
+      sseChannelSubscriberService.subscribe.mockRejectedValue(error);
+
+      listener(TOPIC_JOINED);
+      await new Promise(process.nextTick);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to apply SSE control message',
+        expect.objectContaining({ socketId: 'socket-1', error }),
+      );
+    });
+
     it("should remove the topic from the user's open connections and release the connection's hold on its channel", async () => {
       givenOpenConnections(['socket-1']);
       const listener = await subscribeToUserAndGetListener();
