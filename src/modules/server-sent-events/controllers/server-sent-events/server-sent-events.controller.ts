@@ -15,9 +15,16 @@ import type { ServerSentEventsService } from '../../services/server-sent-events'
 import type { SseConnectionLimiterService } from '../../services/sse-connection-limiter';
 import type { SseConnectionsService } from '../../services/sse-connections';
 import type { SseConnection } from '../../types';
-import type { ReleaseConnectionResourcesProps } from './types';
+import type { OpenConnectionProps, ReleaseConnectionResourcesProps } from './types';
 
 export class ServerSentEventsController implements ControllerFactory {
+  /**
+   * Before this, we only counted connections that got registered.
+   * That meant that a burst of connections could all pass the check before any of them registered.
+   * With this, connections that passed the per-node check but aren't registered yet, will be counted as well.
+   */
+  private pendingConnectionsCount = 0;
+
   constructor(
     private readonly app: Application,
     private readonly sseConnectionsService: SseConnectionsService,
@@ -31,83 +38,100 @@ export class ServerSentEventsController implements ControllerFactory {
 
   private connect() {
     this.app.get(API_PATHS.sse, async (req: Request, res: Response) => {
+      // Step 1: If this node is full, reject before touching Redis.
       this.assertCanConnect();
 
       const { id: userId, sid: sessionId, exp } = req.user as UserToken;
 
       const socketId = randomUUID();
 
-      // Step 2: Acquire a lease to prevent too many connections
-      const isLeaseAcquired = await this.sseConnectionLimiterService.acquire({ userId, socketId });
+      // Step 2: Reserve a slot on this node until the connection is registered (or dropped).
+      this.pendingConnectionsCount++;
 
-      // Step 3: If the lease was not acquired, throw an error
-      if (!isLeaseAcquired) {
-        throw new TooManyRequestsError(`Reached the limit of ${SSE_MAX_CONNECTIONS_PER_USER} SSE connections per user`);
+      try {
+        await this.openConnection({ req, res, userId, sessionId, socketId, expiresAt: exp * 1000 });
+      } finally {
+        this.pendingConnectionsCount--;
       }
+    });
+  }
 
-      // Step 4: Make this node receive the user's messages. Done before the stream opens, so `connected` (sent by sendConnectedMessage) means it's live.
-      // `true` means we successfully subscribed to Redis.
-      const isSubscribed = await this.serverSentEventsService.subscribeToUserEvents({ userId, socketId });
+  private async openConnection(props: OpenConnectionProps): Promise<void> {
+    const { req, res, userId, sessionId, socketId, expiresAt } = props;
 
-      if (!isSubscribed) {
-        await this.releaseConnectionResources({ userId, socketId });
+    /**
+     * Previously, before this variable came to be,
+     * we had used req.socket.destroyed in the below if statement to detect if the client left.
+     * Now, we use this variable instead.
+     */
+    let isClosed = false;
 
-        throw new ServiceUnavailableError('Failed to subscribe to user events');
-      }
+    res.once('close', () => {
+      isClosed = true;
+      this.sseConnectionsService.unregister(socketId);
+      this.releaseConnectionResources({ userId, socketId });
+    });
 
-      // Step 5: Make this node receive the events of the user's topics.
-      // Note: during this step, control messages may arrive. They will be held for the socket until the topics are loaded.
-      const topics = await this.serverSentEventsService.subscribeToUserTopics({ userId, socketId });
+    // Step 2: Acquire a lease, to enforce the per-user limit across the cluster.
+    const isLeaseAcquired = await this.sseConnectionLimiterService.acquire({ userId, socketId });
 
-      if (!topics) {
-        await this.releaseConnectionResources({ userId, socketId });
+    if (!isLeaseAcquired) {
+      throw new TooManyRequestsError(`Reached the limit of ${SSE_MAX_CONNECTIONS_PER_USER} SSE connections per user`);
+    }
 
-        throw new ServiceUnavailableError('Failed to subscribe to topic events');
-      }
+    // Step 3: Make this node receive the user's messages. Done before the stream opens, so `connected` (sent by sendConnectedMessage) means it's live.
+    const isSubscribed = await this.serverSentEventsService.subscribeToUserEvents({ userId, socketId });
 
-      // Step 6: The client may have left during the steps above. Its 'close' already fired, so release here.
-      if (req.socket.destroyed) {
-        this.serverSentEventsService.completeTopicsLoad({ userId, socketId });
+    if (!isSubscribed) {
+      throw new ServiceUnavailableError('Failed to subscribe to user events');
+    }
 
-        await this.releaseConnectionResources({ userId, socketId });
+    // Step 4: Make this node receive the events of the user's topics.
+    // Note: during this step, control messages may arrive. They will be held for the socket until the topics are loaded.
+    const topics = await this.serverSentEventsService.subscribeToUserTopics({ userId, socketId });
 
-        return;
-      }
+    if (!topics) {
+      throw new ServiceUnavailableError('Failed to subscribe to topic events');
+    }
 
-      res.status(StatusCodes.OK);
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache, no-transform');
-      res.setHeader('Connection', 'keep-alive');
-      // Disables response buffering in nginx, which would otherwise hold events back.
-      res.setHeader('X-Accel-Buffering', 'no');
-      /**
-       * flushHeaders() writes the 200, and Content-Type: text/event-stream to the socket (see headers set above).
-       * That commits the HTTP response and turns this request into a long-lived stream.
-       * The browser's EventSource, upon receiving the response, treats this as the stream connection opening.
-       */
-      res.flushHeaders();
-
-      req.socket.setNoDelay(true);
-
-      const connection = this.sseConnectionsService.register({
-        socketId,
-        userId,
-        sessionId,
-        topics,
-        expiresAt: exp * 1000,
-        response: res,
-      });
-
-      // Step 7: Apply the topic changes that arrived while the topics were loading. Must directly follow register.
+    // Step 5: The client may have left during the steps above. Its 'close' already released, before some of the subscriptions above were taken, so release again.
+    if (isClosed) {
       this.serverSentEventsService.completeTopicsLoad({ userId, socketId });
 
-      this.sendConnectedMessage(connection);
+      await this.releaseConnectionResources({ userId, socketId });
 
-      res.on('close', () => {
-        this.sseConnectionsService.unregister(socketId);
-        this.releaseConnectionResources({ userId, socketId });
-      });
+      return;
+    }
+
+    // Step 6: Open the stream and register the connection.
+    res.status(StatusCodes.OK);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    // Disables response buffering in nginx, which would otherwise hold events back.
+    res.setHeader('X-Accel-Buffering', 'no');
+    /**
+     * flushHeaders() writes the 200, and Content-Type: text/event-stream to the socket (see headers set above).
+     * That commits the HTTP response and turns this request into a long-lived stream.
+     * The browser's EventSource, upon receiving the response, treats this as the stream connection opening.
+     */
+    res.flushHeaders();
+
+    req.socket.setNoDelay(true);
+
+    const connection = this.sseConnectionsService.register({
+      socketId,
+      userId,
+      sessionId,
+      topics,
+      expiresAt,
+      response: res,
     });
+
+    // Step 7: Apply the topic changes that arrived while the topics were loading. Must directly follow register.
+    this.serverSentEventsService.completeTopicsLoad({ userId, socketId });
+
+    this.sendConnectedMessage(connection);
   }
 
   /**
@@ -141,11 +165,11 @@ export class ServerSentEventsController implements ControllerFactory {
   }
 
   /**
-   * If this node is full (max connections per node reached),
+   * If this node is full (max connections per node reached, counting the ones still opening),
    * reject before touching Redis
    */
   private assertCanConnect() {
-    const connectionsCount = this.sseConnectionsService.getConnectionsCount();
+    const connectionsCount = this.sseConnectionsService.getConnectionsCount() + this.pendingConnectionsCount;
 
     if (connectionsCount >= SSE_MAX_CONNECTIONS_PER_NODE) {
       throw new ServiceUnavailableError(
