@@ -22,7 +22,7 @@ describe('ServerSentEventsController', () => {
     app = express() as unknown as Application;
 
     app.use((req: Request, _res: Response, next: NextFunction) => {
-      req.user = { id: 'user-1', role: 'user' };
+      req.user = { id: 'user-1', role: 'user', exp: 1_900_000_000 };
       next();
     });
 

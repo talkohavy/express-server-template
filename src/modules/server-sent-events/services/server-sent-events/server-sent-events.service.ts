@@ -1,7 +1,7 @@
 import { isObject } from '@src/common/utils/isObject';
 import { parseJson } from '@src/common/utils/parseJson';
 import { getTopicEventsChannel, getUserEventsChannel } from '@src/core/services/sse-publisher';
-import { SseControlTypes, VALID_SSE_CONTROL_TYPES } from '@src/core/services/sse-topics';
+import { isControlMessage, SseControlTypes } from '@src/core/services/sse-topics';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseEnvelope } from '@src/core/services/sse-publisher';
@@ -136,7 +136,7 @@ export class ServerSentEventsService {
     const parsedPayload = parseJson<unknown>(payload);
 
     // Step 2: If the payload is a control message, handle it.
-    if (this.isControlMessage(parsedPayload)) {
+    if (isControlMessage(parsedPayload)) {
       return void this.handleControlMessage({ userId, controlMessage: parsedPayload });
     }
 
@@ -199,17 +199,22 @@ export class ServerSentEventsService {
    */
   private async applyControlMessage(props: ApplyControlMessageProps): Promise<void> {
     const { socketId, controlMessage } = props;
-    const { control, topic } = controlMessage;
 
     try {
-      // Case 1: join topic
+      // Case 1: the user's session ended
+      if (controlMessage.control === SseControlTypes.SessionEnded) return;
+
+      const { control, props: topicControlMessageProps } = controlMessage;
+      const { topic } = topicControlMessageProps;
+
+      // Case 2: join topic
       if (control === SseControlTypes.TopicJoined) {
         await this.joinTopic({ socketId, topic });
 
         return;
       }
 
-      // Case 2: leave topic
+      // Case 3: leave topic
       await this.leaveTopic({ socketId, topic });
     } catch (error) {
       this.logger.error('Failed to apply SSE control message', { socketId, controlMessage, error });
@@ -348,13 +353,5 @@ export class ServerSentEventsService {
     const { event } = envelope;
 
     return typeof event === 'string' && event.length > 0 && 'data' in envelope;
-  }
-
-  private isControlMessage(parsedPayload: unknown): parsedPayload is SseControlMessage {
-    if (!isObject(parsedPayload)) return false;
-
-    const { control, topic } = parsedPayload;
-
-    return typeof control === 'string' && VALID_SSE_CONTROL_TYPES.has(control) && typeof topic === 'string';
   }
 }

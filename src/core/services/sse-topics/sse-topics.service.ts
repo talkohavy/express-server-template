@@ -3,7 +3,7 @@ import { SseControlTypes } from './logic/constants';
 import { ADD_USER_TO_TOPIC_SCRIPT, REMOVE_USER_FROM_TOPIC_SCRIPT } from './logic/lua-scripts';
 import { getUserTopicsKey } from './logic/utils';
 import type { RedisClientType } from 'redis';
-import type { SseSessionEndedControlMessage, SseTopicControlMessage, UserTopicProps } from './types';
+import type { SseTopicControlMessage, UserTopicProps } from './types';
 
 /**
  * Records which topics each user is in, so SSE events sent to a topic reach its users.
@@ -31,7 +31,7 @@ export class SseTopicsService {
    * - Data messages: the payload being delivered. In our case that's an event like { event: 'new-message', data: {...} }.
    * - Control messages: telling the delivery system how to behave. They're never delivered to anyone.
    *
-   * For example, { control: 'topic-joined', topic: 'chat:7' } tells the node:
+   * For example, { control: 'topic-joined', props: { topic: 'chat:7' } } tells the node:
    *
    * > "this user is now in chat:7; start routing that topic to their open connections."
    *

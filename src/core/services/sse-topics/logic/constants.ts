@@ -7,6 +7,10 @@
 export const SseControlTypes = {
   TopicJoined: 'topic-joined',
   TopicLeft: 'topic-left',
+  /**
+   * The user's session ended (e.g. logout): every node closes the user's open connections.
+   */
+  SessionEnded: 'session-ended',
 } as const;
 
 export type SseControlTypeValues = (typeof SseControlTypes)[keyof typeof SseControlTypes];

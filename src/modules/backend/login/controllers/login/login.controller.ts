@@ -76,7 +76,7 @@ export class LoginController implements ControllerFactory {
   }
 
   private logout() {
-    this.app.post(API_PATHS.authLogout, async (req: Request, res: Response) => {
+    this.app.post(API_PATHS.authLogout, async (_req: Request, res: Response) => {
       this.app.logger.info(`POST ${API_PATHS.authLogout} - user logout`);
 
       const { accessCookie, refreshCookie } = this.app.configService.get<CookiesConfig>(ConfigKeys.Cookies);

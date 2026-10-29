@@ -24,7 +24,7 @@ describe('SseTopicsService', () => {
         'sse:user:user-1:topics',
         'chat:7',
         'sse:events:user:user-1',
-        JSON.stringify({ control: 'topic-joined', topic: 'chat:7' }),
+        JSON.stringify({ control: 'topic-joined', props: { topic: 'chat:7' } }),
       ];
 
       await service.addUserToTopic({ userId: 'user-1', topic: 'chat:7' });
@@ -58,7 +58,7 @@ describe('SseTopicsService', () => {
         'sse:user:user-1:topics',
         'chat:7',
         'sse:events:user:user-1',
-        JSON.stringify({ control: 'topic-left', topic: 'chat:7' }),
+        JSON.stringify({ control: 'topic-left', props: { topic: 'chat:7' } }),
       ];
 
       await service.removeUserFromTopic({ userId: 'user-1', topic: 'chat:7' });

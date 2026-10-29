@@ -11,7 +11,7 @@ export function isControlMessage(parsedPayload: unknown): parsedPayload is SseCo
 
   const { control, props } = parsedPayload;
 
-  if (typeof control === 'string' && !VALID_SSE_CONTROL_TYPES.has(control)) return false;
+  if (typeof control !== 'string' || !VALID_SSE_CONTROL_TYPES.has(control)) return false;
 
   const validateProps = PROPS_VALIDATORS_BY_CONTROL_TYPE[control as SseControlTypeValues];
 

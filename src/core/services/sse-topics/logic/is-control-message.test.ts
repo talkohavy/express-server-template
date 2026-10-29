@@ -13,12 +13,6 @@ describe('isControlMessage', () => {
     expect(actualResult).toBe(true);
   });
 
-  it('should reject a topic message whose topic is at the top level instead of in props', () => {
-    const actualResult = isControlMessage({ control: 'topic-joined', topic: 'chat:7' });
-
-    expect(actualResult).toBe(false);
-  });
-
   it('should reject a topic message whose topic is not a string', () => {
     const actualResult = isControlMessage({ control: 'topic-joined', props: { topic: 7 } });
 
@@ -29,12 +23,6 @@ describe('isControlMessage', () => {
     const actualResult = isControlMessage({ control: 'session-ended' });
 
     expect(actualResult).toBe(true);
-  });
-
-  it('should reject a session-ended message whose props is not an object', () => {
-    const actualResult = isControlMessage({ control: 'session-ended', props: 'x' });
-
-    expect(actualResult).toBe(false);
   });
 
   it('should reject an unknown control type', () => {

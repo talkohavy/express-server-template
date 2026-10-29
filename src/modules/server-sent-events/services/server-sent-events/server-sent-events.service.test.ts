@@ -186,8 +186,8 @@ describe('ServerSentEventsService', () => {
   });
 
   describe('topic changes (control messages on the user channel)', () => {
-    const TOPIC_JOINED = JSON.stringify({ control: 'topic-joined', topic: 'chat:7' });
-    const TOPIC_LEFT = JSON.stringify({ control: 'topic-left', topic: 'chat:7' });
+    const TOPIC_JOINED = JSON.stringify({ control: 'topic-joined', props: { topic: 'chat:7' } });
+    const TOPIC_LEFT = JSON.stringify({ control: 'topic-left', props: { topic: 'chat:7' } });
 
     async function subscribeToUserAndGetListener() {
       await service.subscribeToUserEvents(USER_CONNECTION);
