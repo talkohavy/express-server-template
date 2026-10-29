@@ -1,1 +1,0 @@
-export const SSE_SIMULATION_INTERVAL_MS = 1000;

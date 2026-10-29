@@ -7,6 +7,8 @@ import type { WebSocketServer } from 'ws';
 import type { CallContextService } from '@src/core/services/call-context';
 import type { ConfigService } from '@src/core/services/config';
 import type { LoggerService } from '@src/core/services/logger';
+import type { SsePublisherService } from '@src/core/services/sse-publisher';
+import type { SseTopicsService } from '@src/core/services/sse-topics';
 import type { TopicPublisherService } from '@src/core/services/topic-publisher';
 import type { TopicSubscriberService } from '@src/core/services/topic-subscriber';
 import type { Database } from '@src/databases/postgres/types';
@@ -56,4 +58,6 @@ export interface OptimizedApp {
   wsApp: WebSocketServer;
   topicSubscriber: TopicSubscriberService;
   topicPublisher: TopicPublisherService;
+  ssePublisher: SsePublisherService;
+  sseTopics: SseTopicsService;
 }

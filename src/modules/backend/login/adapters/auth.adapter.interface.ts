@@ -8,6 +8,12 @@ export type DecodedToken = {
   role: string;
   iat: number;
   exp: number;
+  /**
+   * The login session the token belongs to.
+   * Should be unique for each login session.
+   * A login is considered to be a new session when the user logs in from a new device or browser.
+   */
+  sid: string;
   iss: string;
   aud: string;
 };

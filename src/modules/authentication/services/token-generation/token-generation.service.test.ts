@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import { TokenGenerationService } from './token-generation.service';
 import type { JwtConfig } from '@src/plugins/config-service';
 
@@ -32,6 +33,26 @@ describe('TokenGenerationService', () => {
       expect(typeof result.refreshToken).toBe('string');
       expect(result.accessToken.length).toBeGreaterThan(0);
       expect(result.refreshToken.length).toBeGreaterThan(0);
+    });
+
+    it('should give both tokens the same new session id', async () => {
+      const result = await service.createTokens({ userId: 'test-user-123', role: 'user' });
+
+      const { sid: accessSessionId } = jwt.decode(result.accessToken) as { sid: string };
+      const { sid: refreshSessionId } = jwt.decode(result.refreshToken) as { sid: string };
+
+      expect(typeof accessSessionId).toBe('string');
+      expect(refreshSessionId).toBe(accessSessionId);
+    });
+
+    it('should start a different session on every call', async () => {
+      const firstTokens = await service.createTokens({ userId: 'test-user-123', role: 'user' });
+      const secondTokens = await service.createTokens({ userId: 'test-user-123', role: 'user' });
+
+      const { sid: firstSessionId } = jwt.decode(firstTokens.accessToken) as { sid: string };
+      const { sid: secondSessionId } = jwt.decode(secondTokens.accessToken) as { sid: string };
+
+      expect(secondSessionId).not.toBe(firstSessionId);
     });
   });
 

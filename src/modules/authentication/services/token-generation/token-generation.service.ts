@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import type { JwtConfig } from '@src/plugins/config-service';
 import type { CreateAccessTokenProps, CreateRefreshTokenProps } from './types';
@@ -7,7 +8,9 @@ export class TokenGenerationService {
 
   async createTokens(props: { userId: string; role: string }): Promise<{ accessToken: string; refreshToken: string }> {
     const { userId, role } = props;
-    const payload = { id: userId, role };
+
+    const sessionId = randomUUID();
+    const payload = { id: userId, role, sid: sessionId };
     const accessToken = await this.createAccessToken(payload);
     const refreshToken = await this.createRefreshToken(payload);
 

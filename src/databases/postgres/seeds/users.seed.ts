@@ -26,10 +26,11 @@ const DUMMY_USERS = [
 
 /**
  * A dummy hashed password for seed users.
+ * Raw password for login is: 1111
  * In production, each user would have their own unique hashed password.
  */
 const SEED_HASHED_PASSWORD =
-  'seed:a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890ab';
+  'seed:42c5d754f315b8a4b17728da6106d843a4dd53c888a2d00f6f0a303ec138beb650ccf5a5b4c7787b2e03e198966a3081f537985c38d5f8d12901b4566a9b671f';
 
 export type SeedUsersOptions = {
   /**

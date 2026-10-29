@@ -3,6 +3,8 @@ import {
   ForbiddenError,
   InternalServerError,
   NotFoundError,
+  ServiceUnavailableError,
+  TooManyRequestsError,
   UnauthorizedError,
   type HttpException,
 } from '@src/core/errors';
@@ -17,6 +19,7 @@ export const StatusCodes = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
   INTERNAL_ERROR: 500,
   SERVICE_UNAVAILABLE: 503,
 } as const;
@@ -30,5 +33,7 @@ export const StatusCodeToError: Partial<Record<StatusCodeValues, new (...args: a
   [StatusCodes.UNAUTHORIZED]: UnauthorizedError,
   [StatusCodes.FORBIDDEN]: ForbiddenError,
   [StatusCodes.NOT_FOUND]: NotFoundError,
+  [StatusCodes.TOO_MANY_REQUESTS]: TooManyRequestsError,
   [StatusCodes.INTERNAL_ERROR]: InternalServerError,
+  [StatusCodes.SERVICE_UNAVAILABLE]: ServiceUnavailableError,
 } as const;

@@ -12,9 +12,9 @@ export function configuration(): Config {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     },
     jwt: {
-      accessSecret: '1234',
+      accessSecret: env.JWT_ACCESS_SECRET,
       accessExpireTime: '1h',
-      refreshSecret: '1234',
+      refreshSecret: env.JWT_REFRESH_SECRET,
       refreshExpireTime: '1d',
       issuer: 'luckylove',
     },
