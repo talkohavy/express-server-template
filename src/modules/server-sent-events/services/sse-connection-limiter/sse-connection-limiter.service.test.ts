@@ -1,3 +1,4 @@
+import { evalRedisScript } from '@src/common/utils/evalRedisScript';
 import {
   SSE_CONNECTION_LEASE_TTL_MS,
   SSE_HEARTBEAT_INTERVAL_MS,
@@ -9,15 +10,21 @@ import type { RedisClientType } from 'redis';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseConnectionsService } from '../sse-connections';
 
+jest.mock('@src/common/utils/evalRedisScript');
+
+const evalRedisScriptMock = evalRedisScript as jest.MockedFunction<typeof evalRedisScript>;
+
 describe('SseConnectionLimiterService', () => {
   let service: SseConnectionLimiterService;
   let logger: { error: jest.Mock };
-  let redisClient: { sendCommand: jest.Mock; zRem: jest.Mock };
+  let redisClient: { zRem: jest.Mock };
   let socketIdsByUserId: Map<string, Set<string>>;
 
   beforeEach(() => {
+    evalRedisScriptMock.mockReset();
+
     logger = { error: jest.fn() };
-    redisClient = { sendCommand: jest.fn(), zRem: jest.fn() };
+    redisClient = { zRem: jest.fn() };
     socketIdsByUserId = new Map();
 
     const sseConnectionsService = {
@@ -33,27 +40,24 @@ describe('SseConnectionLimiterService', () => {
 
   describe('acquire', () => {
     it('should run the acquire script for the user key', async () => {
-      redisClient.sendCommand.mockResolvedValue(1);
+      evalRedisScriptMock.mockResolvedValue(1);
 
-      const expectedResult = [
-        'EVAL',
-        ACQUIRE_LEASE_SCRIPT,
-        '1',
-        'sse:user:user-1:connections',
-        'connection-1',
-        String(SSE_CONNECTION_LEASE_TTL_MS),
-        String(SSE_MAX_CONNECTIONS_PER_USER),
-      ];
+      const expectedResult = {
+        redisClient,
+        script: ACQUIRE_LEASE_SCRIPT,
+        keys: ['sse:user:user-1:connections'],
+        args: ['connection-1', String(SSE_CONNECTION_LEASE_TTL_MS), String(SSE_MAX_CONNECTIONS_PER_USER)],
+      };
 
       await service.acquire({ userId: 'user-1', socketId: 'connection-1' });
 
-      const [actualResult] = redisClient.sendCommand.mock.calls[0];
+      const actualResult = evalRedisScriptMock.mock.calls[0]?.[0];
 
       expect(actualResult).toEqual(expectedResult);
     });
 
     it('should allow the connection when the script acquires a lease', async () => {
-      redisClient.sendCommand.mockResolvedValue(1);
+      evalRedisScriptMock.mockResolvedValue(1);
 
       const actualResult = await service.acquire({ userId: 'user-1', socketId: 'connection-1' });
 
@@ -61,7 +65,7 @@ describe('SseConnectionLimiterService', () => {
     });
 
     it('should reject the connection when the user is at the limit', async () => {
-      redisClient.sendCommand.mockResolvedValue(0);
+      evalRedisScriptMock.mockResolvedValue(0);
 
       const actualResult = await service.acquire({ userId: 'user-1', socketId: 'connection-1' });
 
@@ -69,7 +73,7 @@ describe('SseConnectionLimiterService', () => {
     });
 
     it('should reject the connection and log when Redis fails', async () => {
-      redisClient.sendCommand.mockRejectedValue(new Error('connection lost'));
+      evalRedisScriptMock.mockRejectedValue(new Error('connection lost'));
 
       const actualResult = await service.acquire({ userId: 'user-1', socketId: 'connection-1' });
 
@@ -136,29 +140,24 @@ describe('SseConnectionLimiterService', () => {
       socketIdsByUserId.set('user-2', new Set(['connection-3']));
 
       const expectedResult = [
-        [
-          'EVAL',
-          REFRESH_LEASES_SCRIPT,
-          '1',
-          'sse:user:user-1:connections',
-          String(SSE_CONNECTION_LEASE_TTL_MS),
-          'connection-1',
-          'connection-2',
-        ],
-        [
-          'EVAL',
-          REFRESH_LEASES_SCRIPT,
-          '1',
-          'sse:user:user-2:connections',
-          String(SSE_CONNECTION_LEASE_TTL_MS),
-          'connection-3',
-        ],
+        {
+          redisClient,
+          script: REFRESH_LEASES_SCRIPT,
+          keys: ['sse:user:user-1:connections'],
+          args: [String(SSE_CONNECTION_LEASE_TTL_MS), 'connection-1', 'connection-2'],
+        },
+        {
+          redisClient,
+          script: REFRESH_LEASES_SCRIPT,
+          keys: ['sse:user:user-2:connections'],
+          args: [String(SSE_CONNECTION_LEASE_TTL_MS), 'connection-3'],
+        },
       ];
 
       service.start();
       await jest.advanceTimersByTimeAsync(SSE_HEARTBEAT_INTERVAL_MS);
 
-      const actualResult = redisClient.sendCommand.mock.calls.map(([command]) => command);
+      const actualResult = evalRedisScriptMock.mock.calls.map(([scriptProps]) => scriptProps);
 
       expect(actualResult).toEqual(expectedResult);
     });

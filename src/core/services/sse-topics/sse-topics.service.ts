@@ -1,3 +1,4 @@
+import { evalRedisScript } from '@src/common/utils/evalRedisScript';
 import { getUserEventsChannel } from '@src/core/services/sse-publisher';
 import { ADD_USER_TO_TOPIC_LIMIT_REACHED, SSE_MAX_TOPICS_PER_USER, SseControlTypes } from './logic/constants';
 import { ADD_USER_TO_TOPIC_SCRIPT, REMOVE_USER_FROM_TOPIC_SCRIPT } from './logic/lua-scripts';
@@ -66,18 +67,12 @@ export class SseTopicsService {
     };
     const sseControlMessageStringified = JSON.stringify(sseControlMessage);
 
-    const command = [
-      'EVAL',
-      ADD_USER_TO_TOPIC_SCRIPT,
-      '1',
-      userTopicsKey,
-      topic,
-      userEventsChannel,
-      sseControlMessageStringified,
-      String(SSE_MAX_TOPICS_PER_USER),
-    ];
-
-    const result = await this.redisPubClient.sendCommand(command);
+    const result = await evalRedisScript({
+      redisClient: this.redisPubClient,
+      script: ADD_USER_TO_TOPIC_SCRIPT,
+      keys: [userTopicsKey],
+      args: [topic, userEventsChannel, sseControlMessageStringified, String(SSE_MAX_TOPICS_PER_USER)],
+    });
 
     const resultAsNumber = Number(result);
 
@@ -107,17 +102,12 @@ export class SseTopicsService {
     };
     const sseControlMessageStringified = JSON.stringify(sseControlMessage);
 
-    const command = [
-      'EVAL',
-      REMOVE_USER_FROM_TOPIC_SCRIPT,
-      '1',
-      userTopicsKey,
-      topic,
-      userEventsChannel,
-      sseControlMessageStringified,
-    ];
-
-    const result = await this.redisPubClient.sendCommand(command);
+    const result = await evalRedisScript({
+      redisClient: this.redisPubClient,
+      script: REMOVE_USER_FROM_TOPIC_SCRIPT,
+      keys: [userTopicsKey],
+      args: [topic, userEventsChannel, sseControlMessageStringified],
+    });
 
     const isRemoved = Number(result) === 1;
 

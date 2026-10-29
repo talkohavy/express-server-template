@@ -1,3 +1,4 @@
+import { evalRedisScript } from '@src/common/utils/evalRedisScript';
 import {
   SSE_CONNECTION_LEASE_TTL_MS,
   SSE_HEARTBEAT_INTERVAL_MS,
@@ -148,9 +149,7 @@ export class SseConnectionLimiterService {
   private async executeScript(props: ExecuteScriptProps): Promise<number> {
     const { script, keys, args } = props;
 
-    const command = ['EVAL', script, String(keys.length), ...keys, ...args];
-
-    const result = await this.redisClient.sendCommand(command);
+    const result = await evalRedisScript({ redisClient: this.redisClient, script, keys, args });
 
     return Number(result);
   }
