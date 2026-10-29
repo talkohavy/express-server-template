@@ -12,3 +12,14 @@ export const SseControlTypes = {
 export type SseControlTypeValues = (typeof SseControlTypes)[keyof typeof SseControlTypes];
 
 export const VALID_SSE_CONTROL_TYPES = new Set<string>(Object.values(SseControlTypes));
+
+/**
+ * Max topics a single user can be in. Every new connection of the user subscribes to all of them,
+ * so an unbounded set would make each connect fan out into an unbounded number of Redis subscriptions.
+ */
+export const SSE_MAX_TOPICS_PER_USER = 100;
+
+/**
+ * Returned by the add-user-to-topic script when the user is already in {@link SSE_MAX_TOPICS_PER_USER} topics.
+ */
+export const ADD_USER_TO_TOPIC_LIMIT_REACHED = -1;

@@ -8,21 +8,35 @@
  * ARGV[1]: the topic
  * ARGV[2]: the user's events channel, `sse:events:user:{userId}`
  * ARGV[3]: the control message (JSON)
+ * ARGV[4]: the max topics per user
  *
- * Returns 1 if the set changed, 0 if not.
+ * Returns 1 if the set changed, 0 if the user was already in the topic, -1 if the user is at the topics limit.
  */
 export const ADD_USER_TO_TOPIC_SCRIPT = `
-  local isAdded = redis.call('SADD', KEYS[1], ARGV[1])
+  local userTopicsKey = KEYS[1]
+  local topic = ARGV[1]
+  local maxTopics = tonumber(ARGV[4])
 
-  if isAdded == 1 then
-    redis.call('PUBLISH', ARGV[2], ARGV[3])
+  local isAlreadyInTopic = redis.call('SISMEMBER', userTopicsKey, topic) == 1
+
+  if isAlreadyInTopic then
+    return 0
   end
 
-  return isAdded
+  local userTopicsCount = redis.call('SCARD', userTopicsKey)
+
+  if userTopicsCount >= maxTopics then
+    return -1
+  end
+
+  redis.call('SADD', userTopicsKey, topic)
+  redis.call('PUBLISH', ARGV[2], ARGV[3])
+
+  return 1
 `;
 
 /**
- * Same as {@link ADD_USER_TO_TOPIC_SCRIPT}, with SREM. Redis deletes the key when its last topic is removed.
+ * Same as {@link ADD_USER_TO_TOPIC_SCRIPT}, with SREM and no limit. Redis deletes the key when its last topic is removed.
  */
 export const REMOVE_USER_FROM_TOPIC_SCRIPT = `
   local isRemoved = redis.call('SREM', KEYS[1], ARGV[1])
