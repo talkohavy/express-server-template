@@ -7,6 +7,7 @@ import {
   SSE_SHUTDOWN_FLUSH_TIMEOUT_MS,
   SSE_SHUTDOWN_RETRY_JITTER_MS,
   SSE_SHUTDOWN_RETRY_MIN_MS,
+  SseCloseReasons,
 } from '../../logic/constants';
 import { SseConnectionsService } from './sse-connections.service';
 import type { Response } from 'express';
@@ -507,6 +508,40 @@ describe('SseConnectionsService', () => {
       await jest.advanceTimersByTimeAsync(SSE_SHUTDOWN_FLUSH_TIMEOUT_MS);
 
       await expect(closePromise).resolves.toBeUndefined();
+    });
+  });
+
+  describe('closeConnection', () => {
+    it('should unregister the connection and end it with a jittered retry', () => {
+      const response = createResponseMock();
+      const connection = service.register({ socketId: randomUUID(), response, userId: USER_ID });
+
+      service.closeConnection({ socketId: connection.socketId, reason: SseCloseReasons.SessionEnded });
+
+      const [chunk] = response.end.mock.calls[0];
+
+      expect(service.getConnectionsCount()).toBe(0);
+      expect(chunk).toMatch(/^retry: \d+\n\n$/);
+    });
+
+    it('should destroy a back-pressured connection instead of ending it', () => {
+      const response = createResponseMock();
+      response.write.mockReturnValue(false);
+      const connection = service.register({ socketId: randomUUID(), response, userId: USER_ID });
+      service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
+
+      service.closeConnection({ socketId: connection.socketId, reason: SseCloseReasons.SessionEnded });
+
+      expect(response.destroy).toHaveBeenCalled();
+      expect(response.end).not.toHaveBeenCalled();
+    });
+
+    it('should be a no-op for an unknown connection', () => {
+      service.register({ socketId: randomUUID(), response: createResponseMock(), userId: USER_ID });
+
+      service.closeConnection({ socketId: 'unknown-id', reason: SseCloseReasons.SessionEnded });
+
+      expect(service.getConnectionsCount()).toBe(1);
     });
   });
 });

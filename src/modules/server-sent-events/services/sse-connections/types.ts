@@ -37,6 +37,11 @@ export type RegisterConnectionProps = {
   topics?: string[];
 };
 
+export type CloseConnectionProps = {
+  socketId: string;
+  reason: SseCloseReasonValues;
+};
+
 export type SendToConnectionProps = {
   socketId: string;
   message: string;

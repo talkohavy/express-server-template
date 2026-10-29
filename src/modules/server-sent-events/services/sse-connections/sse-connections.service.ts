@@ -15,6 +15,7 @@ import type {
   AddToTopicIndexProps,
   AddToTopicsIndexProps,
   AddToUserIndexProps,
+  CloseConnectionProps,
   DestroyConnectionProps,
   RegisterConnectionProps,
   RemoveFromTopicsIndexProps,
@@ -38,7 +39,7 @@ const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
  * - closing every connection on shutdown with a jittered `retry:`
  */
 export class SseConnectionsService {
-  private readonly connections = new Map<string, SseConnection>();
+  private readonly connectionsBySocketId = new Map<string, SseConnection>();
   /**
    * A user can hold several connections at once (one per open tab or device).
    * Only users with at least one connection on this node have an entry.
@@ -66,7 +67,7 @@ export class SseConnectionsService {
       drainTimeout: null,
     };
 
-    this.connections.set(socketId, socketConnection);
+    this.connectionsBySocketId.set(socketId, socketConnection);
     this.addToUserIndex(socketConnection);
     this.addToTopicsIndex(socketConnection);
 
@@ -75,28 +76,67 @@ export class SseConnectionsService {
     this.logger.debug('SSE connection registered', {
       socketId,
       userId,
-      connectionsCount: this.connections.size,
+      connectionsCount: this.connectionsBySocketId.size,
     });
 
     return socketConnection;
   }
 
+  /**
+   * @description
+   *
+   * What it does?
+   *
+   * 1. Clears the drain timeout
+   * 2. Deletes the connection from connectionsBySocketId
+   * 3. Removes the connection from the user index
+   * 4. Removes the connection from the topics index
+   * 5. Stops the heartbeat if there are no connections left
+   */
   unregister(socketId: string): void {
-    const connection = this.connections.get(socketId);
+    const connection = this.connectionsBySocketId.get(socketId);
 
     if (!connection) return;
 
     this.clearDrainTimeout(connection);
 
-    this.connections.delete(socketId);
+    this.connectionsBySocketId.delete(socketId);
     this.removeFromUserIndex(connection);
     this.removeFromTopicsIndex(connection);
 
-    if (this.connections.size === 0) {
+    if (this.connectionsBySocketId.size === 0) {
       this.stopHeartbeat();
     }
 
-    this.logger.debug('SSE connection unregistered', { socketId, connectionsCount: this.connections.size });
+    this.logger.debug('SSE connection unregistered', { socketId, connectionsCount: this.connectionsBySocketId.size });
+  }
+
+  /**
+   * Gracefully closes an open connection: unregisters it right away, and ends its response with a jittered `retry:`,
+   * so the client reconnects (and is authenticated again).
+   * A back-pressured connection is destroyed instead, since its final message might never flush.
+   * A no-op if the connection is unknown.
+   */
+  closeConnection(props: CloseConnectionProps): void {
+    const { socketId, reason } = props;
+
+    // Step 1: Get the connection by socket id
+    const socketConnection = this.connectionsBySocketId.get(socketId);
+
+    // Step 2: If the connection is not found, do nothing
+    if (!socketConnection) return;
+
+    // Step 3: If the connection is back-pressured, destroy it (which also unregisters it)
+    // back-pressured = server not able to write to the client (i.e. client is slow)
+    if (socketConnection.drainTimeout) return this.destroy({ connection: socketConnection, reason });
+
+    this.logger.info('Closing SSE connection', { socketId, reason });
+
+    // Step 4: Unregister the connection
+    this.unregister(socketId);
+
+    // Step 5: End the connection with a jittered `retry:`
+    this.endWithRetry(socketConnection);
   }
 
   /**
@@ -106,7 +146,7 @@ export class SseConnectionsService {
   addTopic(props: AddTopicProps): boolean {
     const { socketId, topic } = props;
 
-    const connection = this.connections.get(socketId);
+    const connection = this.connectionsBySocketId.get(socketId);
 
     if (!connection || connection.topics.has(topic)) return false;
 
@@ -123,11 +163,11 @@ export class SseConnectionsService {
   removeTopic(props: RemoveTopicProps): boolean {
     const { socketId, topic } = props;
 
-    const connection = this.connections.get(socketId);
+    const socketConnection = this.connectionsBySocketId.get(socketId);
 
-    if (!connection?.topics.has(topic)) return false;
+    if (!socketConnection?.topics.has(topic)) return false;
 
-    connection.topics.delete(topic);
+    socketConnection.topics.delete(topic);
     this.removeFromTopicIndex({ socketId, topic });
 
     return true;
@@ -139,11 +179,11 @@ export class SseConnectionsService {
   send(props: SendToConnectionProps): boolean {
     const { socketId, message } = props;
 
-    const connection = this.connections.get(socketId);
+    const socketConnection = this.connectionsBySocketId.get(socketId);
 
-    if (!connection) return false;
+    if (!socketConnection) return false;
 
-    const isWritten = this.write({ connection, message });
+    const isWritten = this.write({ connection: socketConnection, message });
 
     return isWritten;
   }
@@ -177,13 +217,13 @@ export class SseConnectionsService {
   }
 
   sendToAll(message: string): void {
-    this.connections.forEach((connection) => {
+    this.connectionsBySocketId.forEach((connection) => {
       this.write({ connection, message });
     });
   }
 
   getConnectionsCount(): number {
-    return this.connections.size;
+    return this.connectionsBySocketId.size;
   }
 
   /**
@@ -207,13 +247,15 @@ export class SseConnectionsService {
   async closeAllConnections(): Promise<void> {
     this.stopHeartbeat();
 
-    const connectionsArr = Array.from(this.connections.values());
+    const allConnectionsArr = Array.from(this.connectionsBySocketId.values());
 
-    this.connections.clear();
+    this.connectionsBySocketId.clear();
     this.socketIdsByUserId.clear();
     this.socketIdsByTopic.clear();
 
-    const allConnectionsEndedPromise = Promise.all(connectionsArr.map((connection) => this.endWithRetry(connection)));
+    const allConnectionsEndedPromise = Promise.all(
+      allConnectionsArr.map((connection) => this.endWithRetry(connection)),
+    );
 
     let flushTimeout: NodeJS.Timeout | undefined;
     const flushTimeoutPromise = new Promise<void>((resolve) => {
@@ -225,7 +267,7 @@ export class SseConnectionsService {
     clearTimeout(flushTimeout);
 
     this.logger.info('Closed all SSE connections', {
-      connectionsCount: connectionsArr.length,
+      connectionsCount: allConnectionsArr.length,
       reason: SseCloseReasons.Shutdown,
     });
   }
@@ -347,16 +389,20 @@ export class SseConnectionsService {
   private async endWithRetry(connection: SseConnection): Promise<void> {
     const { socketId, response } = connection;
 
+    // Step 1: Clear the drain timeout
     this.clearDrainTimeout(connection);
 
+    // Step 2: If the connection is ended or destroyed, do nothing
     if (response.writableEnded || response.destroyed) return;
 
+    // Step 3: Generate a random retry delay
     const retry = SSE_SHUTDOWN_RETRY_MIN_MS + Math.floor(Math.random() * SSE_SHUTDOWN_RETRY_JITTER_MS);
     const retryMessage = formatSseMessage({ retry });
 
     try {
+      // Step 4: End the connection with a jittered `retry:`
       await new Promise<void>((resolve) => {
-        response.end(retryMessage, () => resolve());
+        response.end(retryMessage, resolve);
       });
     } catch (error) {
       this.logger.error('Failed to end SSE connection', { socketId, error });

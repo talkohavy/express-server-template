@@ -3,7 +3,7 @@ import { ADD_USER_TO_TOPIC_LIMIT_REACHED, SSE_MAX_TOPICS_PER_USER, SseControlTyp
 import { ADD_USER_TO_TOPIC_SCRIPT, REMOVE_USER_FROM_TOPIC_SCRIPT } from './logic/lua-scripts';
 import { getUserTopicsKey } from './logic/utils';
 import type { RedisClientType } from 'redis';
-import type { SseTopicControlMessage, UserTopicProps } from './types';
+import type { SseSessionEndedControlMessage, SseTopicControlMessage, UserTopicProps } from './types';
 
 /**
  * Records which topics each user is in, so SSE events sent to a topic reach its users.
@@ -14,6 +14,8 @@ import type { SseTopicControlMessage, UserTopicProps } from './types';
  * A change also reaches the user's open connections right away, through a control message on the user's events channel.
  * Each operation touches one key, so it works on Redis Cluster too.
  * The keys have no TTL: a user stays in a topic until removed, whether online or not.
+ *
+ * Also owns the other control message on the user's channel: ending the user's SSE session (see {@link closeUserConnections}).
  */
 export class SseTopicsService {
   constructor(private readonly redisPubClient: RedisClientType) {}
@@ -128,5 +130,22 @@ export class SseTopicsService {
     const userTopics = await this.redisPubClient.sMembers(userTopicsKey);
 
     return userTopics;
+  }
+
+  /**
+   * Call when the user's session ends (e.g. on logout). Every node closes the user's open SSE connections,
+   * including ones still opening. The user's topics are kept.
+   *
+   * Closes every device of the user, not just the one that logged out: the others reconnect on their own,
+   * with their still-valid cookies, while the logged-out browser gets a 401 and stops.
+   */
+  async closeUserConnections(userId: string): Promise<void> {
+    const userEventsChannel = getUserEventsChannel(userId);
+    const sseControlMessage: SseSessionEndedControlMessage = {
+      control: SseControlTypes.SessionEnded,
+    };
+    const sseControlMessageStringified = JSON.stringify(sseControlMessage);
+
+    await this.redisPubClient.publish(userEventsChannel, sseControlMessageStringified);
   }
 }

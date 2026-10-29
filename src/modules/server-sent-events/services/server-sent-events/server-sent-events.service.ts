@@ -2,6 +2,7 @@ import { isObject } from '@src/common/utils/isObject';
 import { parseJson } from '@src/common/utils/parseJson';
 import { getTopicEventsChannel, getUserEventsChannel, SSE_MAX_ENVELOPE_BYTES } from '@src/core/services/sse-publisher';
 import { isControlMessage, SseControlTypes } from '@src/core/services/sse-topics';
+import { SseCloseReasons } from '../../logic/constants';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseEnvelope } from '@src/core/services/sse-publisher';
@@ -30,8 +31,9 @@ import type {
  * - Per user: a node subscribes to a user's channel only while it holds a connection of that user.
  * - Per topic: a node subscribes to a topic's channel only while it holds a connection in that topic.
  *
- * The user's channel also carries control messages (topic-joined / topic-left), published by SseTopicsService
- * when the user's topics change. They update the user's open connections and are never forwarded to the browser.
+ * The user's channel also carries control messages, published by SseTopicsService: topic-joined / topic-left when
+ * the user's topics change, and session-ended when the user's connections must close (e.g. logout).
+ * They update the user's open connections and are never forwarded to the browser.
  */
 export class ServerSentEventsService {
   /**
@@ -207,7 +209,11 @@ export class ServerSentEventsService {
 
     try {
       // Case 1: the user's session ended
-      if (controlMessage.control === SseControlTypes.SessionEnded) return;
+      if (controlMessage.control === SseControlTypes.SessionEnded) {
+        this.sseConnectionsService.closeConnection({ socketId, reason: SseCloseReasons.SessionEnded });
+
+        return;
+      }
 
       const { control, props: topicControlMessageProps } = controlMessage;
       const { topic } = topicControlMessageProps;

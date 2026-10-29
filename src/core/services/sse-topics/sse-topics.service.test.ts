@@ -5,12 +5,13 @@ import type { RedisClientType } from 'redis';
 
 describe('SseTopicsService', () => {
   let service: SseTopicsService;
-  let redisPubClient: { sendCommand: jest.Mock; sMembers: jest.Mock };
+  let redisPubClient: { sendCommand: jest.Mock; sMembers: jest.Mock; publish: jest.Mock };
 
   beforeEach(() => {
     redisPubClient = {
       sendCommand: jest.fn().mockResolvedValue(1),
       sMembers: jest.fn().mockResolvedValue([]),
+      publish: jest.fn().mockResolvedValue(1),
     };
 
     service = new SseTopicsService(redisPubClient as unknown as RedisClientType);
@@ -101,6 +102,18 @@ describe('SseTopicsService', () => {
       const actualResult = await service.getUserTopics('user-1');
 
       expect(redisPubClient.sMembers).toHaveBeenCalledWith('sse:user:user-1:topics');
+      expect(actualResult).toEqual(expectedResult);
+    });
+  });
+
+  describe('closeUserConnections', () => {
+    it("should publish session-ended on the user's channel", async () => {
+      const expectedResult = ['sse:events:user:user-1', JSON.stringify({ control: 'session-ended' })];
+
+      await service.closeUserConnections('user-1');
+
+      const actualResult = redisPubClient.publish.mock.calls[0];
+
       expect(actualResult).toEqual(expectedResult);
     });
   });

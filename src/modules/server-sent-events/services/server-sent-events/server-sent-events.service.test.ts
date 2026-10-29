@@ -1,4 +1,5 @@
 import { SSE_MAX_ENVELOPE_BYTES } from '@src/core/services/sse-publisher';
+import { SseCloseReasons } from '../../logic/constants';
 import { ServerSentEventsService } from './server-sent-events.service';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseTopicsService } from '@src/core/services/sse-topics';
@@ -16,6 +17,7 @@ describe('ServerSentEventsService', () => {
     sendToTopic: jest.Mock;
     addTopic: jest.Mock;
     removeTopic: jest.Mock;
+    closeConnection: jest.Mock;
     getSocketIdsByUserId: jest.Mock;
   };
   let sseChannelSubscriberService: {
@@ -35,6 +37,7 @@ describe('ServerSentEventsService', () => {
       sendToTopic: jest.fn(),
       addTopic: jest.fn().mockReturnValue(true),
       removeTopic: jest.fn().mockReturnValue(true),
+      closeConnection: jest.fn(),
       getSocketIdsByUserId: jest.fn().mockReturnValue(new Map()),
     };
     sseChannelSubscriberService = {
@@ -202,6 +205,50 @@ describe('ServerSentEventsService', () => {
       listener(JSON.stringify({ event: 'new-message', data: 'x'.repeat(SSE_MAX_ENVELOPE_BYTES) }));
 
       expect(sseConnectionsService.sendToTopic).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('session end (control message on the user channel)', () => {
+    const SESSION_ENDED = JSON.stringify({ control: 'session-ended' });
+
+    async function subscribeToUserAndGetListener() {
+      await service.subscribeToUserEvents(USER_CONNECTION);
+
+      const { listener } = sseChannelSubscriberService.subscribe.mock.calls[0][0];
+
+      return listener as (payload: string) => void;
+    }
+
+    it('should close every open connection of the user, and forward nothing to the browser', async () => {
+      sseConnectionsService.getSocketIdsByUserId.mockReturnValue(
+        new Map([['user-1', new Set(['socket-1', 'socket-2'])]]),
+      );
+      const listener = await subscribeToUserAndGetListener();
+
+      listener(SESSION_ENDED);
+
+      const expectedResult = [
+        [{ socketId: 'socket-1', reason: SseCloseReasons.SessionEnded }],
+        [{ socketId: 'socket-2', reason: SseCloseReasons.SessionEnded }],
+      ];
+
+      const actualResult = sseConnectionsService.closeConnection.mock.calls;
+
+      expect(actualResult).toEqual(expectedResult);
+      expect(sseConnectionsService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('should close a connection that was still opening once it completes', async () => {
+      const listener = await subscribeToUserAndGetListener();
+      await service.subscribeToUserTopics(USER_CONNECTION);
+
+      listener(SESSION_ENDED);
+      service.completeTopicsLoad(USER_CONNECTION);
+
+      expect(sseConnectionsService.closeConnection).toHaveBeenCalledWith({
+        socketId: 'socket-1',
+        reason: SseCloseReasons.SessionEnded,
+      });
     });
   });
 

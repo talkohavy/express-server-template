@@ -76,15 +76,42 @@ export class LoginController implements ControllerFactory {
   }
 
   private logout() {
-    this.app.post(API_PATHS.authLogout, async (_req: Request, res: Response) => {
+    this.app.post(API_PATHS.authLogout, async (req: Request, res: Response) => {
       this.app.logger.info(`POST ${API_PATHS.authLogout} - user logout`);
 
       const { accessCookie, refreshCookie } = this.app.configService.get<CookiesConfig>(ConfigKeys.Cookies);
+
+      const accessToken: string | undefined = req.cookies?.[accessCookie.name];
+
+      /**
+       * Closes all of the user's open SSE connections, so they stop receiving events after logout.
+       * Why all? because logout says "logout user 42", not "logout user 42's browser 1".
+       * So we close all of the user's open SSE connections, so they stop receiving events after logout.
+       * Other devices will reconnect on their own, with their still-valid cookies,
+       * while the logged-out browser gets a 401 and stops.
+       */
+      await this.closeUserSseConnections(accessToken);
 
       res.clearCookie(accessCookie.name);
       res.clearCookie(refreshCookie.name);
 
       res.json({});
     });
+  }
+
+  /**
+   * Best effort: logout must succeed even if the token is already invalid or Redis is down.
+   * (An expired token needs nothing here: its streams close on their own once it expires.)
+   */
+  private async closeUserSseConnections(accessToken: string | undefined): Promise<void> {
+    if (!accessToken) return;
+
+    try {
+      const { id: userId } = await this.authAdapter.verifyToken(accessToken);
+
+      await this.app.sseTopics.closeUserConnections(userId);
+    } catch (error) {
+      this.app.logger.warn('Failed to close the SSE connections of a logged-out user', { error });
+    }
   }
 }
