@@ -33,7 +33,7 @@ async function build() {
   console.log(`${COLORS.green}- Step 2:${COLORS.stop} build the output dir`);
 
   await esbuild.build({
-    entryPoints: ['src/initServer.ts'],
+    entryPoints: ['src/start-server.ts'],
     bundle: true,
     outfile: `${outDirName}/index.js`,
     sourcemap: true, // <--- defaults to `false`. for 'node', create sourcemaps is for development only.

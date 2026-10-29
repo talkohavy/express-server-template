@@ -21,7 +21,7 @@ export class UsersMongoRepository implements IUsersRepository {
     const fieldProjection = getProjection(fields);
     const queryOptions = { lean: true, ...optionsRaw };
 
-    const userResult = await UserModel.findOne(queryStatement, fieldProjection, queryOptions);
+    const userResult = (await UserModel.findOne(queryStatement, fieldProjection, queryOptions)) as DatabaseUser | null;
 
     return userResult;
   }

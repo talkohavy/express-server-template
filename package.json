@@ -6,7 +6,7 @@
   "types": "index.d.ts",
   "scripts": {
     "clean": "rm -rf node_modules",
-    "dev": "tsx watch --env-file-if-exists=.env src/initServer.ts",
+    "dev": "tsx watch --env-file-if-exists=.env src/start-server.ts",
     "build": "node build.config.mjs",
     "start": "node --env-file=.env dist/index.js",
     "tsc": "tsc -p tsconfig.json",

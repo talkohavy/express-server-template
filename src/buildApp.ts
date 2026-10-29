@@ -19,7 +19,7 @@ import { FileUploadModule } from './modules/file-upload';
 import { HealthCheckModule } from './modules/health-check';
 import { MetricsModule } from './modules/metrics';
 import { RedisDebugModule } from './modules/redis-debug';
-// import { ServerSentEventModule } from './modules/serverSentEvents';
+import { ServerSentEventsModule } from './modules/server-sent-events';
 import { SocketIOModule } from './modules/socketio';
 import { SwaggerModule } from './modules/swagger';
 import { UsersModule } from './modules/users';
@@ -87,7 +87,7 @@ export async function buildApp(app: Application) {
     // - BFF module (route provider) - requires Main modules to be ready
     BackendModule,
     // - Utility modules
-    // ServerSentEventModule,
+    ServerSentEventsModule,
     SwaggerModule,
   ]);
 
