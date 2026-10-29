@@ -1,4 +1,4 @@
-import { SSE_DEFAULT_EVENT_NAME } from './logic/constants';
+import { SSE_DEFAULT_EVENT_NAME, SSE_MAX_ENVELOPE_BYTES } from './logic/constants';
 import { getTopicEventsChannel, getUserEventsChannel } from './logic/utils';
 import type { RedisClientType } from 'redis';
 import type { PublishProps, SendToTopicProps, SendToUserProps, SseEnvelope } from './types';
@@ -42,11 +42,19 @@ export class SsePublisherService {
     return receivingNodesCount;
   }
 
+  /**
+   * @throws if the serialized envelope is larger than {@link SSE_MAX_ENVELOPE_BYTES}.
+   */
   private async publish(props: PublishProps): Promise<number> {
     const { channel, event, data } = props;
 
     const envelope: SseEnvelope = { event, data };
     const envelopeStringified = JSON.stringify(envelope);
+    const envelopeBytes = Buffer.byteLength(envelopeStringified);
+
+    if (envelopeBytes > SSE_MAX_ENVELOPE_BYTES) {
+      throw new Error(`SSE envelope is ${envelopeBytes} bytes, over the limit of ${SSE_MAX_ENVELOPE_BYTES}`);
+    }
 
     const receivingNodesCount = await this.redisPubClient.publish(channel, envelopeStringified);
 

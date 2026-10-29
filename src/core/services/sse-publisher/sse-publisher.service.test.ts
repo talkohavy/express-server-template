@@ -1,3 +1,4 @@
+import { SSE_MAX_ENVELOPE_BYTES } from './logic/constants';
 import { SsePublisherService } from './sse-publisher.service';
 import type { RedisClientType } from 'redis';
 
@@ -59,6 +60,15 @@ describe('SsePublisherService', () => {
       const actualResult = await service.sendToTopic({ topic: 'chat:7', data: 'hi' });
 
       expect(actualResult).toBe(0);
+    });
+  });
+
+  describe('envelope size limit', () => {
+    it('should throw without publishing when the envelope is over the limit', async () => {
+      const data = 'x'.repeat(SSE_MAX_ENVELOPE_BYTES);
+
+      await expect(service.sendToTopic({ topic: 'chat:7', data })).rejects.toThrow('over the limit');
+      expect(redisPubClient.publish).not.toHaveBeenCalled();
     });
   });
 });
