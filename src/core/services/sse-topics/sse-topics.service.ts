@@ -3,7 +3,7 @@ import { SseControlTypes } from './logic/constants';
 import { ADD_USER_TO_TOPIC_SCRIPT, REMOVE_USER_FROM_TOPIC_SCRIPT } from './logic/lua-scripts';
 import { getUserTopicsKey } from './logic/utils';
 import type { RedisClientType } from 'redis';
-import type { SseControlMessage, UserTopicProps } from './types';
+import type { SseSessionEndedControlMessage, SseTopicControlMessage, UserTopicProps } from './types';
 
 /**
  * Records which topics each user is in, so SSE events sent to a topic reach its users.
@@ -57,9 +57,9 @@ export class SseTopicsService {
 
     const userTopicsKey = getUserTopicsKey(userId);
     const userEventsChannel = getUserEventsChannel(userId);
-    const sseControlMessage: SseControlMessage = {
+    const sseControlMessage: SseTopicControlMessage = {
       control: SseControlTypes.TopicJoined,
-      topic,
+      props: { topic },
     };
     const sseControlMessageStringified = JSON.stringify(sseControlMessage);
 
@@ -91,9 +91,9 @@ export class SseTopicsService {
 
     const userTopicsKey = getUserTopicsKey(userId);
     const userEventsChannel = getUserEventsChannel(userId);
-    const sseControlMessage: SseControlMessage = {
+    const sseControlMessage: SseTopicControlMessage = {
       control: SseControlTypes.TopicLeft,
-      topic,
+      props: { topic },
     };
     const sseControlMessageStringified = JSON.stringify(sseControlMessage);
 
