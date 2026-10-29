@@ -1,3 +1,4 @@
+import { SSE_MAX_ENVELOPE_BYTES } from '@src/core/services/sse-publisher';
 import { ServerSentEventsService } from './server-sent-events.service';
 import type { LoggerService } from '@src/core/services/logger';
 import type { SseTopicsService } from '@src/core/services/sse-topics';
@@ -106,6 +107,15 @@ describe('ServerSentEventsService', () => {
 
       expect(sseConnectionsService.sendToUser).not.toHaveBeenCalled();
     });
+
+    it("should drop an oversized envelope on the user's channel and log it", async () => {
+      const listener = await subscribeToUserAndGetListener();
+
+      listener(JSON.stringify({ event: 'update', data: 'x'.repeat(SSE_MAX_ENVELOPE_BYTES) }));
+
+      expect(sseConnectionsService.sendToUser).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith('SSE pub/sub: oversized envelope dropped', expect.any(Object));
+    });
   });
 
   describe('releaseConnectionSubscriptions', () => {
@@ -182,6 +192,16 @@ describe('ServerSentEventsService', () => {
         topic: 'chat:7',
         message: 'event: new-message\ndata: {"chatId":"7"}\n\n',
       });
+    });
+
+    it("should drop an oversized envelope on a topic's channel", async () => {
+      sseTopicsService.getUserTopics.mockResolvedValue(['chat:7']);
+      await service.subscribeToUserTopics(USER_CONNECTION);
+      const { listener } = sseChannelSubscriberService.subscribe.mock.calls[0][0];
+
+      listener(JSON.stringify({ event: 'new-message', data: 'x'.repeat(SSE_MAX_ENVELOPE_BYTES) }));
+
+      expect(sseConnectionsService.sendToTopic).not.toHaveBeenCalled();
     });
   });
 

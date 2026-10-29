@@ -1,6 +1,6 @@
 import { isObject } from '@src/common/utils/isObject';
 import { parseJson } from '@src/common/utils/parseJson';
-import { getTopicEventsChannel, getUserEventsChannel } from '@src/core/services/sse-publisher';
+import { getTopicEventsChannel, getUserEventsChannel, SSE_MAX_ENVELOPE_BYTES } from '@src/core/services/sse-publisher';
 import { isControlMessage, SseControlTypes } from '@src/core/services/sse-topics';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { LoggerService } from '@src/core/services/logger';
@@ -132,20 +132,23 @@ export class ServerSentEventsService {
   private handleUserChannelMessage(props: HandleUserChannelMessageProps): void {
     const { userId, payload } = props;
 
-    // Step 1: Parse the payload.
+    // Step 1: Drop an oversized payload before parsing it.
+    if (this.isOversizedPayload(payload)) return;
+
+    // Step 2: Parse the payload.
     const parsedPayload = parseJson<unknown>(payload);
 
-    // Step 2: If the payload is a control message, handle it.
+    // Step 3: If the payload is a control message, handle it.
     if (isControlMessage(parsedPayload)) {
       return void this.handleControlMessage({ userId, controlMessage: parsedPayload });
     }
 
-    // Step 3: If the payload isn't a valid envelope either, drop it.
+    // Step 4: If the payload isn't a valid envelope either, drop it.
     if (!this.isValidEnvelope(parsedPayload)) {
       return void this.logger.error('SSE pub/sub: invalid envelope received', { payload });
     }
 
-    // Step 4: Forward the envelope to the user's connections.
+    // Step 5: Forward the envelope to the user's connections.
     const message = this.envelopeToSseMessage(parsedPayload);
 
     this.sseConnectionsService.sendToUser({ userId, message });
@@ -153,6 +156,8 @@ export class ServerSentEventsService {
 
   private forwardEnvelopeToTopic(props: ForwardEnvelopeToTopicProps): void {
     const { topic, payload } = props;
+
+    if (this.isOversizedPayload(payload)) return;
 
     const parsedPayload = parseJson<unknown>(payload);
 
@@ -353,5 +358,18 @@ export class ServerSentEventsService {
     const { event } = envelope;
 
     return typeof event === 'string' && event.length > 0 && 'data' in envelope;
+  }
+
+  /**
+   * The publisher already enforces {@link SSE_MAX_ENVELOPE_BYTES}; this guards against anything else publishing on the channels.
+   */
+  private isOversizedPayload(payload: string): boolean {
+    const payloadBytes = Buffer.byteLength(payload);
+
+    if (payloadBytes <= SSE_MAX_ENVELOPE_BYTES) return false;
+
+    this.logger.error('SSE pub/sub: oversized envelope dropped', { payloadBytes });
+
+    return true;
   }
 }
