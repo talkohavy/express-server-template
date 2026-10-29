@@ -22,6 +22,7 @@ type ResponseMock = Response & {
   write: jest.Mock;
   end: jest.Mock;
   destroy: jest.Mock;
+  writableFinished: boolean;
 };
 
 function createLoggerMock() {
@@ -35,12 +36,18 @@ function createResponseMock(props?: { writableEnded?: boolean; writableLength?: 
 
   const response = Object.assign(new EventEmitter(), {
     write: jest.fn().mockReturnValue(true),
-    end: jest.fn((_chunk: string, callback: () => void) => callback()),
+    end: jest.fn(),
     destroy: jest.fn(),
     writableEnded,
+    writableFinished: writableEnded,
     writableLength,
     destroyed: false,
   }) as unknown as ResponseMock;
+
+  response.end.mockImplementation((_chunk: string, callback: () => void) => {
+    response.writableFinished = true;
+    callback();
+  });
 
   return response;
 }
@@ -788,6 +795,63 @@ describe('SseConnectionsService', () => {
       await jest.advanceTimersByTimeAsync(SSE_SHUTDOWN_FLUSH_TIMEOUT_MS);
 
       await expect(closePromise).resolves.toBeUndefined();
+    });
+
+    it('should destroy the responses that did not flush by the timeout', async () => {
+      const stuckResponse = createResponseMock();
+      stuckResponse.end.mockImplementation(() => {});
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response: stuckResponse,
+        userId: USER_ID,
+      });
+
+      const closePromise = service.closeAllConnections();
+      await jest.advanceTimersByTimeAsync(SSE_SHUTDOWN_FLUSH_TIMEOUT_MS);
+      await closePromise;
+
+      expect(stuckResponse.destroy).toHaveBeenCalled();
+    });
+
+    it('should not destroy the responses that flushed', async () => {
+      const response = createResponseMock();
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
+
+      await service.closeAllConnections();
+
+      expect(response.destroy).not.toHaveBeenCalled();
+    });
+
+    it('should stop accepting connections', async () => {
+      await service.closeAllConnections();
+
+      const actualResult = service.isAcceptingConnections();
+
+      expect(actualResult).toBe(false);
+    });
+  });
+
+  describe('accepting connections', () => {
+    it('should accept connections by default', () => {
+      const actualResult = service.isAcceptingConnections();
+
+      expect(actualResult).toBe(true);
+    });
+
+    it('should stop accepting connections once told to', () => {
+      service.stopAcceptingConnections();
+
+      const actualResult = service.isAcceptingConnections();
+
+      expect(actualResult).toBe(false);
     });
   });
 

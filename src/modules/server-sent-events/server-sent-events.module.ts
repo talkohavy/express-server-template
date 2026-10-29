@@ -51,14 +51,21 @@ export class ServerSentEventsModule implements ModuleFactory {
   }
 
   /**
-   * Call on shutdown. Unsubscribes from Redis first so nothing new is fanned out, then closes all connections.
+   * Call on shutdown.
+   * 1. Refuses connections that are still opening, so none registers after the others were closed.
+   * 2. Unsubscribes from Redis, so nothing new is fanned out.
+   * 3. Releases every lease at once, while Redis is still connected (the process may exit before each connection's own release).
+   * 4. Closes all connections.
    */
   async cleanup(): Promise<void> {
+    this.sseConnectionsService.stopAcceptingConnections();
+
     await this.serverSentEventsService.cleanup();
 
     this.sseConnectionLimiterService.stop();
 
-    // Each closing connection releases its own lease, so this must run while Redis is still connected.
+    await this.sseConnectionLimiterService.releaseAll();
+
     await this.sseConnectionsService.closeAllConnections();
   }
 

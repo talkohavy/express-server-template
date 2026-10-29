@@ -42,6 +42,10 @@ const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
 export class SseConnectionsService {
   private readonly connectionsBySocketId = new Map<string, SseConnection>();
   /**
+   * Turned off once shutdown starts; never turned back on.
+   */
+  private isAccepting = true;
+  /**
    * A user can hold several connections at once (one per open tab or device).
    * Only users with at least one connection on this node have an entry.
    * Good for quickly sending a message to all connections a user has on this node.
@@ -246,11 +250,25 @@ export class SseConnectionsService {
     return this.socketIdsByUserId;
   }
 
+  isAcceptingConnections(): boolean {
+    return this.isAccepting;
+  }
+
+  /**
+   * Call first thing on shutdown, so connections that are still opening are refused instead of registered
+   * after every connection was closed.
+   */
+  stopAcceptingConnections(): void {
+    this.isAccepting = false;
+  }
+
   /**
    * Call on shutdown. Stops the heartbeat, tells every client to reconnect after a random delay,
-   * and ends every response. Resolves once all final messages are flushed, or after a timeout.
+   * and ends every response. Resolves once all final messages are flushed, or after a timeout,
+   * at which point the connections that haven't flushed are destroyed.
    */
   async closeAllConnections(): Promise<void> {
+    this.stopAcceptingConnections();
     this.stopHeartbeat();
 
     const allConnectionsArr = Array.from(this.connectionsBySocketId.values());
@@ -271,6 +289,18 @@ export class SseConnectionsService {
     await Promise.race([allConnectionsEndedPromise, flushTimeoutPromise]);
 
     clearTimeout(flushTimeout);
+
+    /**
+     * Destroys the sockets of responses that still haven't flushed their final message by the timeout
+     * (slow clients, or dead TCP peers nobody noticed). Their buffered data is dropped, and the client
+     * reconnects with its last known `retry`.
+     *
+     * Without it, a stuck socket stays open, and since `server.close()` waits for open connections,
+     * the process can't exit until the orchestrator kills it, cutting the rest of the shutdown short.
+     */
+    allConnectionsArr.forEach((connection) => {
+      if (!connection.response.writableFinished) connection.response.destroy();
+    });
 
     this.logger.info('Closed all SSE connections', {
       connectionsCount: allConnectionsArr.length,

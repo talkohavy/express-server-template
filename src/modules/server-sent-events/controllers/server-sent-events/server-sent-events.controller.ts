@@ -38,7 +38,7 @@ export class ServerSentEventsController implements ControllerFactory {
 
   private connect() {
     this.app.get(API_PATHS.sse, async (req: Request, res: Response) => {
-      // Step 1: If this node is full, reject before touching Redis.
+      // Step 1: If this node is shutting down or full, reject before touching Redis.
       this.assertCanConnect();
 
       const { id: userId, sid: sessionId, exp } = req.user as UserToken;
@@ -103,7 +103,12 @@ export class ServerSentEventsController implements ControllerFactory {
       return;
     }
 
-    // Step 6: Open the stream and register the connection.
+    // Step 6: Shutdown may have started during the steps above. Closing the response releases what was taken.
+    if (!this.sseConnectionsService.isAcceptingConnections()) {
+      throw new ServiceUnavailableError('Server is shutting down');
+    }
+
+    // Step 7: Open the stream and register the connection.
     res.status(StatusCodes.OK);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -128,7 +133,7 @@ export class ServerSentEventsController implements ControllerFactory {
       response: res,
     });
 
-    // Step 7: Apply the topic changes that arrived while the topics were loading. Must directly follow register.
+    // Step 8: Apply the topic changes that arrived while the topics were loading. Must directly follow register.
     this.serverSentEventsService.completeTopicsLoad({ userId, socketId });
 
     this.sendConnectedMessage(connection);
@@ -165,10 +170,14 @@ export class ServerSentEventsController implements ControllerFactory {
   }
 
   /**
-   * If this node is full (max connections per node reached, counting the ones still opening),
+   * If this node is shutting down, or full (max connections per node reached, counting the ones still opening),
    * reject before touching Redis
    */
   private assertCanConnect() {
+    if (!this.sseConnectionsService.isAcceptingConnections()) {
+      throw new ServiceUnavailableError('Server is shutting down');
+    }
+
     const connectionsCount = this.sseConnectionsService.getConnectionsCount() + this.pendingConnectionsCount;
 
     if (connectionsCount >= SSE_MAX_CONNECTIONS_PER_NODE) {

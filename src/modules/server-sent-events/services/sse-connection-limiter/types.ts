@@ -3,7 +3,7 @@ export type LeaseProps = {
   socketId: string;
 };
 
-export type RefreshUserLeasesProps = {
+export type UserLeasesProps = {
   userId: string;
   socketIds: string[];
 };

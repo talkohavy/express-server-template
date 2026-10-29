@@ -82,7 +82,7 @@ describe('SseConnectionLimiterService', () => {
     it('should remove the lease from the user key', async () => {
       await service.release({ userId: 'user-1', socketId: 'connection-1' });
 
-      expect(redisClient.zRem).toHaveBeenCalledWith('sse:user:user-1:connections', 'connection-1');
+      expect(redisClient.zRem).toHaveBeenCalledWith('sse:user:user-1:connections', ['connection-1']);
     });
 
     it('should log instead of throwing when Redis fails', async () => {
@@ -90,6 +90,34 @@ describe('SseConnectionLimiterService', () => {
 
       await expect(service.release({ userId: 'user-1', socketId: 'connection-1' })).resolves.toBeUndefined();
       expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('releaseAll', () => {
+    it("should remove every local connection's lease, one command per user", async () => {
+      socketIdsByUserId.set('user-1', new Set(['connection-1', 'connection-2']));
+      socketIdsByUserId.set('user-2', new Set(['connection-3']));
+
+      const expectedResult = [
+        ['sse:user:user-1:connections', ['connection-1', 'connection-2']],
+        ['sse:user:user-2:connections', ['connection-3']],
+      ];
+
+      await service.releaseAll();
+
+      const actualResult = redisClient.zRem.mock.calls;
+
+      expect(actualResult).toEqual(expectedResult);
+    });
+
+    it('should keep releasing the other users when one release fails', async () => {
+      socketIdsByUserId.set('user-1', new Set(['connection-1']));
+      socketIdsByUserId.set('user-2', new Set(['connection-2']));
+      redisClient.zRem.mockRejectedValueOnce(new Error('connection lost'));
+
+      await service.releaseAll();
+
+      expect(redisClient.zRem).toHaveBeenCalledTimes(2);
     });
   });
 

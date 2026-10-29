@@ -7,5 +7,6 @@ export const SSE_SHUTDOWN_RETRY_JITTER_MS = 5000;
 
 /**
  * Upper bound on how long shutdown waits for the final messages to flush before giving up.
+ * Connections still not flushed by then are destroyed.
  */
 export const SSE_SHUTDOWN_FLUSH_TIMEOUT_MS = 2000;

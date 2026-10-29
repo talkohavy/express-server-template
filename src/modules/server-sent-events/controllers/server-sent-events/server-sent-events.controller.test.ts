@@ -13,6 +13,7 @@ describe('ServerSentEventsController', () => {
   let app: Application;
   let sseConnectionsService: {
     getConnectionsCount: jest.Mock;
+    isAcceptingConnections: jest.Mock;
     register: jest.Mock;
     unregister: jest.Mock;
     send: jest.Mock;
@@ -42,6 +43,7 @@ describe('ServerSentEventsController', () => {
 
     sseConnectionsService = {
       getConnectionsCount: jest.fn().mockReturnValue(0),
+      isAcceptingConnections: jest.fn().mockReturnValue(true),
       // Ends the stream right away, so the request completes.
       register: jest.fn((props: RegisterConnectionProps) => {
         props.response.end();
@@ -90,6 +92,28 @@ describe('ServerSentEventsController', () => {
 
       expect(response.status).toBe(StatusCodes.SERVICE_UNAVAILABLE);
       expect(sseConnectionLimiterService.acquire).not.toHaveBeenCalled();
+    });
+
+    it('should respond with 503 without acquiring a lease when the node is shutting down', async () => {
+      sseConnectionsService.isAcceptingConnections.mockReturnValue(false);
+
+      const response = await request(app).get(API_PATHS.sse);
+
+      expect(response.status).toBe(StatusCodes.SERVICE_UNAVAILABLE);
+      expect(sseConnectionLimiterService.acquire).not.toHaveBeenCalled();
+    });
+
+    it('should respond with 503 without registering when shutdown starts while the connection is opening', async () => {
+      sseConnectionsService.isAcceptingConnections.mockReturnValueOnce(true).mockReturnValue(false);
+
+      const response = await request(app).get(API_PATHS.sse);
+      await waitForCloseHandlers();
+
+      const [{ socketId }] = serverSentEventsService.subscribeToUserEvents.mock.calls[0];
+
+      expect(response.status).toBe(StatusCodes.SERVICE_UNAVAILABLE);
+      expect(sseConnectionsService.register).not.toHaveBeenCalled();
+      expect(sseConnectionLimiterService.release).toHaveBeenCalledWith({ userId: 'user-1', socketId });
     });
 
     it('should count connections that are still opening against the per-node limit', async () => {
