@@ -7,7 +7,8 @@ export class TokenVerificationService {
   async verifyToken(token: string): Promise<any> {
     const { accessSecret, issuer } = this.jwtConfig;
 
-    const options: VerifyOptions = { issuer };
+    // Pinned to the algorithm tokens are signed with (see TokenGenerationService), so a token can't pick its own.
+    const options: VerifyOptions = { issuer, algorithms: ['HS256'] };
 
     const decodedToken = (await new Promise((resolve, reject) => {
       jwt.verify(token, accessSecret, options, (error, decoded: any) => {
