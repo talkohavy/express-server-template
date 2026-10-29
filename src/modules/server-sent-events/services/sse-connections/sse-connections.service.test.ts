@@ -16,6 +16,7 @@ import type { LoggerService } from '@src/core/services/logger';
 const USER_ID = 'user-1';
 const OTHER_USER_ID = 'user-2';
 const SESSION_ID = 'session-1';
+const NEVER_EXPIRES = Number.MAX_SAFE_INTEGER;
 
 type ResponseMock = Response & {
   write: jest.Mock;
@@ -55,6 +56,7 @@ describe('SseConnectionsService', () => {
     it('should keep the id it was given', () => {
       const connection = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: 'connection-1',
         response: createResponseMock(),
         userId: USER_ID,
@@ -66,12 +68,14 @@ describe('SseConnectionsService', () => {
     it('should increase the connections count', () => {
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
       });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -87,12 +91,19 @@ describe('SseConnectionsService', () => {
     it('should remove only the given connection', () => {
       const first = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
       });
       const secondResponse = createResponseMock();
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response: secondResponse, userId: USER_ID });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response: secondResponse,
+        userId: USER_ID,
+      });
 
       service.unregister(first.socketId);
       service.sendToAll('data: x\n\n');
@@ -102,7 +113,13 @@ describe('SseConnectionsService', () => {
 
     it('should be a no-op for an unknown connection id', () => {
       const response = createResponseMock();
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       service.unregister('unknown-id');
 
@@ -116,18 +133,21 @@ describe('SseConnectionsService', () => {
     it('should count connections per user', () => {
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
       });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
       });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: OTHER_USER_ID,
@@ -152,12 +172,14 @@ describe('SseConnectionsService', () => {
     it('should decrease when one of the user connections is unregistered', () => {
       const first = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
       });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -172,7 +194,13 @@ describe('SseConnectionsService', () => {
 
     it('should drop the user once their last connection is destroyed as a slow client', () => {
       const response = createResponseMock({ writableLength: SSE_MAX_BUFFERED_BYTES + 1 });
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
 
@@ -184,12 +212,14 @@ describe('SseConnectionsService', () => {
     it('should drop every user on closeAllConnections', async () => {
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
       });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: OTHER_USER_ID,
@@ -208,7 +238,13 @@ describe('SseConnectionsService', () => {
   describe('send', () => {
     it('should write the message to the given connection', () => {
       const response = createResponseMock();
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       const actualResult = service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
 
@@ -224,7 +260,13 @@ describe('SseConnectionsService', () => {
 
     it('should not write to a response that already ended', () => {
       const response = createResponseMock({ writableEnded: true });
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       const actualResult = service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
 
@@ -238,10 +280,23 @@ describe('SseConnectionsService', () => {
       const firstTab = createResponseMock();
       const secondTab = createResponseMock();
       const otherUserResponse = createResponseMock();
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response: firstTab, userId: USER_ID });
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response: secondTab, userId: USER_ID });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response: firstTab,
+        userId: USER_ID,
+      });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response: secondTab,
+        userId: USER_ID,
+      });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: otherUserResponse,
         userId: OTHER_USER_ID,
@@ -256,7 +311,13 @@ describe('SseConnectionsService', () => {
 
     it('should be a no-op for a user with no connections on this node', () => {
       const response = createResponseMock();
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       service.sendToUser({ userId: 'unknown-user', message: 'data: x\n\n' });
 
@@ -271,6 +332,7 @@ describe('SseConnectionsService', () => {
       const nonMember = createResponseMock();
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: firstMember,
         userId: USER_ID,
@@ -278,6 +340,7 @@ describe('SseConnectionsService', () => {
       });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: secondMember,
         userId: OTHER_USER_ID,
@@ -285,6 +348,7 @@ describe('SseConnectionsService', () => {
       });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: nonMember,
         userId: 'user-3',
@@ -302,6 +366,7 @@ describe('SseConnectionsService', () => {
       const response = createResponseMock();
       const connection = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response,
         userId: USER_ID,
@@ -318,7 +383,13 @@ describe('SseConnectionsService', () => {
   describe('addTopic', () => {
     it('should make the connection receive the topic', () => {
       const response = createResponseMock();
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       const actualResult = service.addTopic({ socketId: connection.socketId, topic: 'chat:7' });
       service.sendToTopic({ topic: 'chat:7', message: 'data: x\n\n' });
@@ -331,6 +402,7 @@ describe('SseConnectionsService', () => {
     it('should return false when the connection is already in the topic', () => {
       const connection = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -354,6 +426,7 @@ describe('SseConnectionsService', () => {
       const response = createResponseMock();
       const connection = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response,
         userId: USER_ID,
@@ -371,6 +444,7 @@ describe('SseConnectionsService', () => {
     it('should return false when the connection is not in the topic', () => {
       const connection = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -384,6 +458,7 @@ describe('SseConnectionsService', () => {
     it('should keep delivering the topic to its other connections', () => {
       const leaving = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -392,6 +467,7 @@ describe('SseConnectionsService', () => {
       const stayingResponse = createResponseMock();
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: stayingResponse,
         userId: OTHER_USER_ID,
@@ -409,7 +485,13 @@ describe('SseConnectionsService', () => {
     it('should write the message to every connection', () => {
       const responses = [createResponseMock(), createResponseMock(), createResponseMock()];
       responses.forEach((response) =>
-        service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID }),
+        service.register({
+          sessionId: SESSION_ID,
+          expiresAt: NEVER_EXPIRES,
+          socketId: randomUUID(),
+          response,
+          userId: USER_ID,
+        }),
       );
 
       service.sendToAll('data: x\n\n');
@@ -423,8 +505,20 @@ describe('SseConnectionsService', () => {
         throw new Error('socket closed');
       });
       const healthyResponse = createResponseMock();
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response: failingResponse, userId: USER_ID });
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response: healthyResponse, userId: USER_ID });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response: failingResponse,
+        userId: USER_ID,
+      });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response: healthyResponse,
+        userId: USER_ID,
+      });
 
       service.sendToAll('data: x\n\n');
 
@@ -444,7 +538,13 @@ describe('SseConnectionsService', () => {
     it('should send a ping comment to every connection on each interval', () => {
       const responses = [createResponseMock(), createResponseMock()];
       responses.forEach((response) =>
-        service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID }),
+        service.register({
+          sessionId: SESSION_ID,
+          expiresAt: NEVER_EXPIRES,
+          socketId: randomUUID(),
+          response,
+          userId: USER_ID,
+        }),
       );
 
       jest.advanceTimersByTime(SSE_HEARTBEAT_INTERVAL_MS);
@@ -455,12 +555,14 @@ describe('SseConnectionsService', () => {
     it('should not start more than one heartbeat timer', () => {
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
       });
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -474,6 +576,7 @@ describe('SseConnectionsService', () => {
     it('should stop the heartbeat once the last connection is unregistered', () => {
       const connection = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -489,12 +592,19 @@ describe('SseConnectionsService', () => {
     it('should keep the heartbeat running while other connections remain', () => {
       const first = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
       });
       const secondResponse = createResponseMock();
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response: secondResponse, userId: USER_ID });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response: secondResponse,
+        userId: USER_ID,
+      });
 
       service.unregister(first.socketId);
       jest.advanceTimersByTime(SSE_HEARTBEAT_INTERVAL_MS);
@@ -514,7 +624,13 @@ describe('SseConnectionsService', () => {
 
     it('should destroy a connection whose buffer exceeds the limit', () => {
       const response = createResponseMock({ writableLength: SSE_MAX_BUFFERED_BYTES + 1 });
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       const actualResult = service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
 
@@ -526,7 +642,13 @@ describe('SseConnectionsService', () => {
     it('should destroy a connection that does not drain within the timeout', () => {
       const response = createResponseMock();
       response.write.mockReturnValue(false);
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
       jest.advanceTimersByTime(SSE_DRAIN_TIMEOUT_MS);
@@ -537,7 +659,13 @@ describe('SseConnectionsService', () => {
     it('should keep a connection that drains before the timeout', () => {
       const response = createResponseMock();
       response.write.mockReturnValue(false);
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
       response.emit('drain');
@@ -549,7 +677,13 @@ describe('SseConnectionsService', () => {
     it('should clear a pending drain timeout when the connection is unregistered', () => {
       const response = createResponseMock();
       response.write.mockReturnValue(false);
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
       service.unregister(connection.socketId);
@@ -571,7 +705,13 @@ describe('SseConnectionsService', () => {
     it('should end every response with a retry inside the jitter range', async () => {
       const responses = [createResponseMock(), createResponseMock(), createResponseMock()];
       responses.forEach((response) =>
-        service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID }),
+        service.register({
+          sessionId: SESSION_ID,
+          expiresAt: NEVER_EXPIRES,
+          socketId: randomUUID(),
+          response,
+          userId: USER_ID,
+        }),
       );
 
       await service.closeAllConnections();
@@ -587,7 +727,13 @@ describe('SseConnectionsService', () => {
 
     it('should not end a response that already ended', async () => {
       const response = createResponseMock({ writableEnded: true });
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       await service.closeAllConnections();
 
@@ -597,6 +743,7 @@ describe('SseConnectionsService', () => {
     it('should empty the registry and stop the heartbeat', async () => {
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -611,7 +758,13 @@ describe('SseConnectionsService', () => {
     it('should clear a pending drain timeout so it does not fire after shutdown', async () => {
       const response = createResponseMock();
       response.write.mockReturnValue(false);
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
       service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
 
       await service.closeAllConnections();
@@ -623,7 +776,13 @@ describe('SseConnectionsService', () => {
     it('should resolve after the flush timeout when a response never finishes', async () => {
       const response = createResponseMock();
       response.end.mockImplementation(() => {});
-      service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       const closePromise = service.closeAllConnections();
       await jest.advanceTimersByTimeAsync(SSE_SHUTDOWN_FLUSH_TIMEOUT_MS);
@@ -636,6 +795,7 @@ describe('SseConnectionsService', () => {
     it('should return the connection with its session id', () => {
       const connection = service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -656,7 +816,13 @@ describe('SseConnectionsService', () => {
   describe('closeConnection', () => {
     it('should unregister the connection and end it with a jittered retry', () => {
       const response = createResponseMock();
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
 
       service.closeConnection({ socketId: connection.socketId, reason: SseCloseReasons.SessionEnded });
 
@@ -669,7 +835,13 @@ describe('SseConnectionsService', () => {
     it('should destroy a back-pressured connection instead of ending it', () => {
       const response = createResponseMock();
       response.write.mockReturnValue(false);
-      const connection = service.register({ sessionId: SESSION_ID, socketId: randomUUID(), response, userId: USER_ID });
+      const connection = service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
       service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
 
       service.closeConnection({ socketId: connection.socketId, reason: SseCloseReasons.SessionEnded });
@@ -681,6 +853,7 @@ describe('SseConnectionsService', () => {
     it('should be a no-op for an unknown connection', () => {
       service.register({
         sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
         socketId: randomUUID(),
         response: createResponseMock(),
         userId: USER_ID,
@@ -688,6 +861,56 @@ describe('SseConnectionsService', () => {
 
       service.closeConnection({ socketId: 'unknown-id', reason: SseCloseReasons.SessionEnded });
 
+      expect(service.getConnectionsCount()).toBe(1);
+    });
+  });
+
+  describe('token expiry', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should close a connection at the first heartbeat past its token expiry', () => {
+      const response = createResponseMock();
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: Date.now() + 1000,
+        socketId: randomUUID(),
+        response,
+        userId: USER_ID,
+      });
+
+      jest.advanceTimersByTime(SSE_HEARTBEAT_INTERVAL_MS);
+
+      expect(response.end).toHaveBeenCalled();
+      expect(response.write).not.toHaveBeenCalled();
+    });
+
+    it('should keep pinging the connections whose token is still valid', () => {
+      const expiringResponse = createResponseMock();
+      const validResponse = createResponseMock();
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: Date.now() + 1000,
+        socketId: randomUUID(),
+        response: expiringResponse,
+        userId: USER_ID,
+      });
+      service.register({
+        sessionId: SESSION_ID,
+        expiresAt: NEVER_EXPIRES,
+        socketId: randomUUID(),
+        response: validResponse,
+        userId: USER_ID,
+      });
+
+      jest.advanceTimersByTime(SSE_HEARTBEAT_INTERVAL_MS);
+
+      expect(validResponse.write).toHaveBeenCalledWith(': ping\n\n');
       expect(service.getConnectionsCount()).toBe(1);
     });
   });

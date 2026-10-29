@@ -32,6 +32,7 @@ export type RegisterConnectionProps = {
   userId: string;
   sessionId: string;
   response: Response;
+  expiresAt: number;
   /**
    * @default []
    */

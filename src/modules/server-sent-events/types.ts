@@ -5,7 +5,11 @@ export type SseConnection = {
   userId: string;
   sessionId: string;
   response: Response;
-  connectedAt: number;
+  /**
+   * When the access token the connection was opened with expires (ms since the epoch).
+   * Implementation-wise: the connection is closed at the first heartbeat past it.
+   */
+  expiresAt: number;
   /**
    * The topics routed to this connection. Routing only: the Redis subscriptions it holds are tracked by
    * SseChannelSubscriberService under its socketId, and released from there.

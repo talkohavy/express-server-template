@@ -55,9 +55,15 @@ describe('SseAuthenticationMiddleware', () => {
   });
 
   it('should attach the user to the request when the token is valid', async () => {
-    tokenVerificationService.verifyToken.mockResolvedValue({ id: '42', role: 'admin', iat: 1, exp: 2 });
+    tokenVerificationService.verifyToken.mockResolvedValue({
+      id: '42',
+      role: 'admin',
+      iat: 1,
+      exp: 2,
+      sid: 'session-1',
+    });
 
-    const expectedResult = { id: '42', role: 'admin', exp: 2, iat: 1 };
+    const expectedResult = { id: '42', role: 'admin', exp: 2, iat: 1, sid: 'session-1' };
 
     const response = await request(app).get(API_PATHS.sse).set('Cookie', `${ACCESS_COOKIE_NAME}=valid-token`);
     const actualResult = response.body;

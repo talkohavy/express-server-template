@@ -35,6 +35,7 @@ const HEARTBEAT_MESSAGE = formatSseMessage({ comment: 'ping' });
  *
  * Also owns connection health:
  * - a single heartbeat timer (not one per connection), running only while there are connections
+ * - closing connections whose access token expired, on that same heartbeat
  * - destroying slow clients, so one stalled reader can't grow this node's memory without limit
  * - closing every connection on shutdown with a jittered `retry:`
  */
@@ -56,14 +57,14 @@ export class SseConnectionsService {
   constructor(private readonly logger: LoggerService) {}
 
   register(props: RegisterConnectionProps): SseConnection {
-    const { socketId, userId, sessionId, response, topics = [] } = props;
+    const { socketId, userId, sessionId, response, expiresAt, topics = [] } = props;
 
     const socketConnection: SseConnection = {
       socketId,
       userId,
       sessionId,
       response,
-      connectedAt: Date.now(),
+      expiresAt,
       topics: new Set(topics),
       drainTimeout: null,
     };
@@ -478,10 +479,28 @@ export class SseConnectionsService {
   private startHeartbeat(): void {
     if (this.heartbeatInterval) return;
 
-    this.heartbeatInterval = setInterval(() => this.sendToAll(HEARTBEAT_MESSAGE), SSE_HEARTBEAT_INTERVAL_MS);
+    this.heartbeatInterval = setInterval(() => this.sendHeartbeat(), SSE_HEARTBEAT_INTERVAL_MS);
 
     // An interval keeps the process alive by default. A heartbeat interval shouldn't. We need to unref it to avoid that.
     this.heartbeatInterval.unref();
+  }
+
+  /**
+   * Pings every connection, and closes the ones whose access token expired instead.
+   * Checking expiry here costs no extra timer, at the price of closing up to one interval late.
+   */
+  private sendHeartbeat(): void {
+    const now = Date.now();
+
+    this.connectionsBySocketId.forEach((connection) => {
+      const { socketId, expiresAt } = connection;
+
+      if (expiresAt <= now) {
+        return void this.closeConnection({ socketId, reason: SseCloseReasons.TokenExpired });
+      }
+
+      this.write({ connection, message: HEARTBEAT_MESSAGE });
+    });
   }
 
   private stopHeartbeat(): void {
