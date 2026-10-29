@@ -6,8 +6,6 @@ export function configuration(): Config {
 
   return {
     port: env.PORT,
-    isDev: env.IS_DEV,
-    isCI: env.IS_CI,
     authCookie: {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     },
@@ -22,11 +20,15 @@ export function configuration(): Config {
       accessCookie: {
         name: 'access_token',
         domain: env.DOMAIN,
+        path: '/',
         maxAge: 60 * 60 * 1000, // 1 hour
+        isSecure: env.IS_SECURE,
       },
       refreshCookie: {
         name: 'refresh_token',
         domain: env.DOMAIN,
+        path: '/',
+        isSecure: env.IS_SECURE,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
       },
     },

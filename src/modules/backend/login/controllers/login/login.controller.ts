@@ -1,10 +1,12 @@
 import { API_PATHS, StatusCodes } from '@src/common/constants';
 import { BadRequestError } from '@src/core/errors';
 import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
-import { ConfigKeys, type Config, type CookiesConfig } from '@src/plugins/config-service';
+import { ConfigKeys, type CookiesConfig } from '@src/plugins/config-service';
 import { UserNotFoundError } from '../../../../users/logic/errors/user-not-found.error';
+import { clearAuthCookies } from '../../logic/utils/clear-auth-cookies';
+import { setAuthCookies } from '../../logic/utils/set-auth-cookies';
 import { loginSchema } from './dto/login.dto';
-import type { Application, CookieOptions, Request, Response } from 'express';
+import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
 import type { IUsersAdapter } from '../../../users/adapters/users.adapter.interface';
 import type { IAuthAdapter } from '../../adapters/auth.adapter.interface';
@@ -47,21 +49,9 @@ export class LoginController implements ControllerFactory {
         const tokens = await this.authAdapter.createTokens(user.id.toString(), user.role);
 
         // Step 4: Set cookies
-        const { cookies, isDev } = this.app.configService.get<Config>('');
-        const { name: accessTokenCookieName, maxAge, domain } = cookies.accessCookie;
-        const { name: refreshTokenCookieName } = cookies.refreshCookie;
+        const cookiesConfig = this.app.configService.get<CookiesConfig>(ConfigKeys.Cookies);
 
-        const options: CookieOptions = {
-          secure: !isDev,
-          httpOnly: true,
-          domain: isDev ? undefined : domain,
-          path: '/',
-          maxAge,
-          sameSite: 'strict',
-        };
-
-        res.cookie(accessTokenCookieName, tokens.accessToken, options);
-        res.cookie(refreshTokenCookieName, tokens.refreshToken, options);
+        setAuthCookies({ res, tokens, cookiesConfig });
 
         res.json(user);
       } catch (error) {
@@ -79,9 +69,9 @@ export class LoginController implements ControllerFactory {
     this.app.post(API_PATHS.authLogout, async (req: Request, res: Response) => {
       this.app.logger.info(`POST ${API_PATHS.authLogout} - user logout`);
 
-      const { accessCookie, refreshCookie } = this.app.configService.get<CookiesConfig>(ConfigKeys.Cookies);
+      const cookiesConfig = this.app.configService.get<CookiesConfig>(ConfigKeys.Cookies);
 
-      const accessToken: string | undefined = req.cookies?.[accessCookie.name];
+      const accessToken: string | undefined = req.cookies?.[cookiesConfig.accessCookie.name];
 
       /**
        * Closes the SSE connections of this login session only (the token's `sid`), on every node,
@@ -90,8 +80,7 @@ export class LoginController implements ControllerFactory {
        */
       await this.closeSessionSseConnections(accessToken);
 
-      res.clearCookie(accessCookie.name);
-      res.clearCookie(refreshCookie.name);
+      clearAuthCookies({ res, cookiesConfig });
 
       res.json({});
     });

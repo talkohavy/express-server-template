@@ -9,12 +9,20 @@ export type AuthCookieConfig = {
   maxAge: number;
 };
 
-type SingleCookie = {
+export type SingleCookie = {
   name: string;
+  isSecure: boolean;
   /**
    * @default 'localhost'
    */
   domain: string;
+  /**
+   * The browser only sends the cookie to URLs under this path.
+   */
+  path: `/${string}`;
+  /**
+   * In milliseconds
+   */
   maxAge: number;
 };
 
@@ -53,17 +61,23 @@ export type PostgresConfig = {
 export type ServicesConfig = Record<ServiceNameValues, { baseUrl: string }>;
 
 export type ValidEnv = {
-  PORT: number;
+  POSTGRES_CONNECTION_STRING: string;
+  REDIS_CONNECTION_STRING: string;
   MICRO_SERVICES_PROTOCOL: 'direct' | 'http' | 'grpc';
-  IS_DEV: boolean;
-  IS_CI: boolean;
   /**
-   * The domain to use for the cookies.
-   *
-   * i.e. '.luckylove.co.il'
-   * @default 'localhost'
+   * Signs and verifies access tokens. At least 32 characters.
    */
-  DOMAIN: string;
+  JWT_ACCESS_SECRET: string;
+  /**
+   * Signs refresh tokens. At least 32 characters, and must differ from JWT_ACCESS_SECRET.
+   */
+  JWT_REFRESH_SECRET: string;
+  PORT: number;
+  /**
+   * Used to identify the service in the logs.
+   * @default 'express-server-template'
+   */
+  SERVICE_NAME: string;
   LOG_LEVEL: LogLevelValues;
   /**
    * Used for filtering logs by environment.
@@ -77,22 +91,18 @@ export type ValidEnv = {
    * @default false
    */
   USE_PRETTY_PRINT: boolean;
-  /**
-   * Used to identify the service in the logs.
-   * @default 'my-nest-like-server'
-   */
-  SERVICE_NAME: string;
-  NODE_ENV: string | undefined;
-  POSTGRES_CONNECTION_STRING: string;
-  REDIS_CONNECTION_STRING: string;
-  /**
-   * Signs and verifies access tokens. At least 32 characters.
-   */
-  JWT_ACCESS_SECRET: string;
-  /**
-   * Signs refresh tokens. At least 32 characters, and must differ from JWT_ACCESS_SECRET.
-   */
-  JWT_REFRESH_SECRET: string;
   SHOULD_MIGRATE_POSTGRES: boolean;
+  /**
+   * The domain to use for the cookies.
+   *
+   * i.e. '.luckylove.co.il'
+   * @default 'localhost'
+   */
+  DOMAIN: string;
+  /**
+   * Whether to use secure cookies.
+   * @default true
+   */
+  IS_SECURE: boolean;
   WEBSOCKET_MODULE: 'socket.io' | 'ws' | undefined;
 };

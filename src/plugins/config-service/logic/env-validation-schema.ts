@@ -20,6 +20,7 @@ export const envSchema = Joi.object<ValidEnv>({
     'number.base': '"PORT" must be a valid number',
     'number.port': '"PORT" must be a valid port (0-65535)',
   }),
+  SERVICE_NAME: Joi.string().default('express-server-template'),
   LOG_LEVEL: Joi.string()
     .valid(...logLevelValues)
     .default(LogLevel.Info)
@@ -29,12 +30,9 @@ export const envSchema = Joi.object<ValidEnv>({
   LOG_ENV: Joi.string()
     .valid(...Object.values(Environment))
     .default(Environment.Dev),
-  SERVICE_NAME: Joi.string().default('my-nest-like-server'),
-  SHOULD_MIGRATE_POSTGRES: Joi.boolean().default(false),
-  WEBSOCKET_MODULE: Joi.string().valid('socket.io', 'ws').optional(),
-  IS_DEV: Joi.boolean().default(false),
-  IS_CI: Joi.boolean().default(false),
-  DOMAIN: Joi.string().default('localhost'),
-  NODE_ENV: Joi.string().optional(),
   USE_PRETTY_PRINT: Joi.boolean().default(false),
+  SHOULD_MIGRATE_POSTGRES: Joi.boolean().default(false),
+  DOMAIN: Joi.string().default(undefined),
+  IS_SECURE: Joi.boolean().default(true),
+  WEBSOCKET_MODULE: Joi.string().valid('socket.io', 'ws').optional(),
 }).unknown(true);

@@ -1,4 +1,5 @@
 import jwt, { type VerifyOptions } from 'jsonwebtoken';
+import { UnauthorizedError } from '@src/core/errors';
 import type { JwtConfig } from '@src/plugins/config-service';
 
 export class TokenVerificationService {
@@ -12,7 +13,7 @@ export class TokenVerificationService {
 
     const decodedToken = (await new Promise((resolve, reject) => {
       jwt.verify(token, accessSecret, options, (error, decoded: any) => {
-        if (error) return reject(error);
+        if (error) return reject(new UnauthorizedError('Invalid or expired access token'));
 
         resolve(decoded);
       });
