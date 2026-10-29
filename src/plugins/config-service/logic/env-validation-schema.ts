@@ -10,6 +10,11 @@ export const envSchema = Joi.object<ValidEnv>({
   POSTGRES_CONNECTION_STRING: Joi.string().required(),
   REDIS_CONNECTION_STRING: Joi.string().required(),
   MICRO_SERVICES_PROTOCOL: Joi.string().valid('direct', 'http', 'grpc').required(),
+  JWT_ACCESS_SECRET: Joi.string().min(32).required(),
+  JWT_REFRESH_SECRET: Joi.string().min(32).required().invalid(Joi.ref('JWT_ACCESS_SECRET')).messages({
+    'any.invalid':
+      '"JWT_REFRESH_SECRET" must differ from "JWT_ACCESS_SECRET", or a refresh token would pass as an access token',
+  }),
   // Optional environment variables
   PORT: Joi.number().port().default(8000).messages({
     'number.base': '"PORT" must be a valid number',

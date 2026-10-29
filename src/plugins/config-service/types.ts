@@ -85,6 +85,14 @@ export type ValidEnv = {
   NODE_ENV: string | undefined;
   POSTGRES_CONNECTION_STRING: string;
   REDIS_CONNECTION_STRING: string;
+  /**
+   * Signs and verifies access tokens. At least 32 characters.
+   */
+  JWT_ACCESS_SECRET: string;
+  /**
+   * Signs refresh tokens. At least 32 characters, and must differ from JWT_ACCESS_SECRET.
+   */
+  JWT_REFRESH_SECRET: string;
   SHOULD_MIGRATE_POSTGRES: boolean;
   WEBSOCKET_MODULE: 'socket.io' | 'ws' | undefined;
 };
