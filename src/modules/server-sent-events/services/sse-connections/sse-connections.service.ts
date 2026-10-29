@@ -56,11 +56,12 @@ export class SseConnectionsService {
   constructor(private readonly logger: LoggerService) {}
 
   register(props: RegisterConnectionProps): SseConnection {
-    const { socketId, userId, response, topics = [] } = props;
+    const { socketId, userId, sessionId, response, topics = [] } = props;
 
     const socketConnection: SseConnection = {
       socketId,
       userId,
+      sessionId,
       response,
       connectedAt: Date.now(),
       topics: new Set(topics),
@@ -220,6 +221,10 @@ export class SseConnectionsService {
     this.connectionsBySocketId.forEach((connection) => {
       this.write({ connection, message });
     });
+  }
+
+  getConnection(socketId: string): SseConnection | undefined {
+    return this.connectionsBySocketId.get(socketId);
   }
 
   getConnectionsCount(): number {

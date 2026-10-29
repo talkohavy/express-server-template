@@ -1,5 +1,13 @@
 import type { SseControlTypes, SseControlTypeValues } from './logic/constants';
 
+export type UserSessionProps = {
+  userId: string;
+  /**
+   * The login session (the access token's `sid` claim).
+   */
+  sessionId: string;
+};
+
 export type UserTopicProps = {
   userId: string;
   /**
@@ -32,6 +40,12 @@ export type SseTopicControlMessage = SseControlMessageBase & {
 
 export type SseSessionEndedControlMessage = SseControlMessageBase & {
   control: typeof SseControlTypes.SessionEnded;
+  props: {
+    /**
+     * The login session that ended (the access token's `sid` claim).
+     */
+    sessionId: string;
+  };
 };
 
 export type SseControlMessage = SseTopicControlMessage | SseSessionEndedControlMessage;

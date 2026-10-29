@@ -33,7 +33,7 @@ export class ServerSentEventsController implements ControllerFactory {
     this.app.get(API_PATHS.sse, async (req: Request, res: Response) => {
       this.assertCanConnect();
 
-      const { id: userId } = req.user as UserToken;
+      const { id: userId, sid: sessionId } = req.user as UserToken;
 
       const socketId = randomUUID();
 
@@ -89,7 +89,7 @@ export class ServerSentEventsController implements ControllerFactory {
 
       req.socket.setNoDelay(true);
 
-      const connection = this.sseConnectionsService.register({ socketId, userId, topics, response: res });
+      const connection = this.sseConnectionsService.register({ socketId, userId, sessionId, topics, response: res });
 
       // Step 7: Apply the topic changes that arrived while the topics were loading. Must directly follow register.
       this.serverSentEventsService.completeTopicsLoad({ userId, socketId });

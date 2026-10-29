@@ -19,10 +19,16 @@ describe('isControlMessage', () => {
     expect(actualResult).toBe(false);
   });
 
-  it('should accept a session-ended message without props', () => {
-    const actualResult = isControlMessage({ control: 'session-ended' });
+  it('should accept a session-ended message with a session id in its props', () => {
+    const actualResult = isControlMessage({ control: 'session-ended', props: { sessionId: 'session-1' } });
 
     expect(actualResult).toBe(true);
+  });
+
+  it('should reject a session-ended message without a session id', () => {
+    const actualResult = isControlMessage({ control: 'session-ended' });
+
+    expect(actualResult).toBe(false);
   });
 
   it('should reject an unknown control type', () => {

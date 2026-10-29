@@ -3,6 +3,7 @@ import type { Response } from 'express';
 export type SseConnection = {
   socketId: string;
   userId: string;
+  sessionId: string;
   response: Response;
   connectedAt: number;
   /**

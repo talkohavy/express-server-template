@@ -18,6 +18,7 @@ describe('ServerSentEventsService', () => {
     addTopic: jest.Mock;
     removeTopic: jest.Mock;
     closeConnection: jest.Mock;
+    getConnection: jest.Mock;
     getSocketIdsByUserId: jest.Mock;
   };
   let sseChannelSubscriberService: {
@@ -38,6 +39,7 @@ describe('ServerSentEventsService', () => {
       addTopic: jest.fn().mockReturnValue(true),
       removeTopic: jest.fn().mockReturnValue(true),
       closeConnection: jest.fn(),
+      getConnection: jest.fn(),
       getSocketIdsByUserId: jest.fn().mockReturnValue(new Map()),
     };
     sseChannelSubscriberService = {
@@ -209,7 +211,7 @@ describe('ServerSentEventsService', () => {
   });
 
   describe('session end (control message on the user channel)', () => {
-    const SESSION_ENDED = JSON.stringify({ control: 'session-ended' });
+    const SESSION_ENDED = JSON.stringify({ control: 'session-ended', props: { sessionId: 'session-1' } });
 
     async function subscribeToUserAndGetListener() {
       await service.subscribeToUserEvents(USER_CONNECTION);
@@ -219,9 +221,23 @@ describe('ServerSentEventsService', () => {
       return listener as (payload: string) => void;
     }
 
-    it('should close every open connection of the user, and forward nothing to the browser', async () => {
+    beforeEach(() => {
+      const sessionIdBySocketId = new Map([
+        ['socket-1', 'session-1'],
+        ['socket-2', 'session-1'],
+        ['socket-3', 'session-2'],
+      ]);
+
+      sseConnectionsService.getConnection.mockImplementation((socketId: string) => {
+        const sessionId = sessionIdBySocketId.get(socketId);
+
+        return { socketId, sessionId };
+      });
+    });
+
+    it("should close only the ended session's connections, and forward nothing to the browser", async () => {
       sseConnectionsService.getSocketIdsByUserId.mockReturnValue(
-        new Map([['user-1', new Set(['socket-1', 'socket-2'])]]),
+        new Map([['user-1', new Set(['socket-1', 'socket-2', 'socket-3'])]]),
       );
       const listener = await subscribeToUserAndGetListener();
 
@@ -238,7 +254,7 @@ describe('ServerSentEventsService', () => {
       expect(sseConnectionsService.sendToUser).not.toHaveBeenCalled();
     });
 
-    it('should close a connection that was still opening once it completes', async () => {
+    it('should close a connection of the ended session that was still opening once it completes', async () => {
       const listener = await subscribeToUserAndGetListener();
       await service.subscribeToUserTopics(USER_CONNECTION);
 

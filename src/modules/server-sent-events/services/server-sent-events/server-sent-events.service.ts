@@ -32,7 +32,7 @@ import type {
  * - Per topic: a node subscribes to a topic's channel only while it holds a connection in that topic.
  *
  * The user's channel also carries control messages, published by SseTopicsService: topic-joined / topic-left when
- * the user's topics change, and session-ended when the user's connections must close (e.g. logout).
+ * the user's topics change, and session-ended when one of the user's login sessions ends (e.g. logout).
  * They update the user's open connections and are never forwarded to the browser.
  */
 export class ServerSentEventsService {
@@ -208,8 +208,14 @@ export class ServerSentEventsService {
     const { socketId, controlMessage } = props;
 
     try {
-      // Case 1: the user's session ended
+      // Case 1: one of the user's login sessions ended: close the connection only if it belongs to that session
       if (controlMessage.control === SseControlTypes.SessionEnded) {
+        const { sessionId } = controlMessage.props;
+
+        const connection = this.sseConnectionsService.getConnection(socketId);
+
+        if (connection?.sessionId !== sessionId) return;
+
         this.sseConnectionsService.closeConnection({ socketId, reason: SseCloseReasons.SessionEnded });
 
         return;

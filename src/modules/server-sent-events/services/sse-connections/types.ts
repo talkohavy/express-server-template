@@ -30,6 +30,7 @@ export type AddToTopicIndexProps = {
 export type RegisterConnectionProps = {
   socketId: string;
   userId: string;
+  sessionId: string;
   response: Response;
   /**
    * @default []

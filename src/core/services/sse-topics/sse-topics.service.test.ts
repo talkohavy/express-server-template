@@ -106,11 +106,14 @@ describe('SseTopicsService', () => {
     });
   });
 
-  describe('closeUserConnections', () => {
-    it("should publish session-ended on the user's channel", async () => {
-      const expectedResult = ['sse:events:user:user-1', JSON.stringify({ control: 'session-ended' })];
+  describe('closeSessionConnections', () => {
+    it("should publish session-ended with the session id on the user's channel", async () => {
+      const expectedResult = [
+        'sse:events:user:user-1',
+        JSON.stringify({ control: 'session-ended', props: { sessionId: 'session-1' } }),
+      ];
 
-      await service.closeUserConnections('user-1');
+      await service.closeSessionConnections({ userId: 'user-1', sessionId: 'session-1' });
 
       const actualResult = redisPubClient.publish.mock.calls[0];
 

@@ -3,7 +3,7 @@ export const SseCloseReasons = {
   DrainTimeout: 'drain-timeout',
   Shutdown: 'shutdown',
   /**
-   * The user's session ended (e.g. logout), see `SseTopicsService.closeUserConnections`.
+   * The login session the connection was opened with ended (e.g. logout), see `SseTopicsService.closeSessionConnections`.
    */
   SessionEnded: 'session-ended',
 } as const;

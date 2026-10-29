@@ -84,13 +84,11 @@ export class LoginController implements ControllerFactory {
       const accessToken: string | undefined = req.cookies?.[accessCookie.name];
 
       /**
-       * Closes all of the user's open SSE connections, so they stop receiving events after logout.
-       * Why all? because logout says "logout user 42", not "logout user 42's browser 1".
-       * So we close all of the user's open SSE connections, so they stop receiving events after logout.
-       * Other devices will reconnect on their own, with their still-valid cookies,
-       * while the logged-out browser gets a 401 and stops.
+       * Closes the SSE connections of this login session only (the token's `sid`), on every node,
+       * so they stop receiving events after logout. That covers every tab of this browser, since they share the cookie.
+       * The user's other sessions (other devices or browsers) are untouched.
        */
-      await this.closeUserSseConnections(accessToken);
+      await this.closeSessionSseConnections(accessToken);
 
       res.clearCookie(accessCookie.name);
       res.clearCookie(refreshCookie.name);
@@ -103,13 +101,13 @@ export class LoginController implements ControllerFactory {
    * Best effort: logout must succeed even if the token is already invalid or Redis is down.
    * (An expired token needs nothing here: its streams close on their own once it expires.)
    */
-  private async closeUserSseConnections(accessToken: string | undefined): Promise<void> {
+  private async closeSessionSseConnections(accessToken: string | undefined): Promise<void> {
     if (!accessToken) return;
 
     try {
-      const { id: userId } = await this.authAdapter.verifyToken(accessToken);
+      const { id: userId, sid: sessionId } = await this.authAdapter.verifyToken(accessToken);
 
-      await this.app.sseTopics.closeUserConnections(userId);
+      await this.app.sseTopics.closeSessionConnections({ userId, sessionId });
     } catch (error) {
       this.app.logger.warn('Failed to close the SSE connections of a logged-out user', { error });
     }

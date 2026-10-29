@@ -3,7 +3,7 @@ import { ADD_USER_TO_TOPIC_LIMIT_REACHED, SSE_MAX_TOPICS_PER_USER, SseControlTyp
 import { ADD_USER_TO_TOPIC_SCRIPT, REMOVE_USER_FROM_TOPIC_SCRIPT } from './logic/lua-scripts';
 import { getUserTopicsKey } from './logic/utils';
 import type { RedisClientType } from 'redis';
-import type { SseSessionEndedControlMessage, SseTopicControlMessage, UserTopicProps } from './types';
+import type { SseSessionEndedControlMessage, SseTopicControlMessage, UserSessionProps, UserTopicProps } from './types';
 
 /**
  * Records which topics each user is in, so SSE events sent to a topic reach its users.
@@ -15,7 +15,7 @@ import type { SseSessionEndedControlMessage, SseTopicControlMessage, UserTopicPr
  * Each operation touches one key, so it works on Redis Cluster too.
  * The keys have no TTL: a user stays in a topic until removed, whether online or not.
  *
- * Also owns the other control message on the user's channel: ending the user's SSE session (see {@link closeUserConnections}).
+ * Also owns the other control message on the user's channel: ending one of the user's login sessions (see {@link closeSessionConnections}).
  */
 export class SseTopicsService {
   constructor(private readonly redisPubClient: RedisClientType) {}
@@ -133,16 +133,19 @@ export class SseTopicsService {
   }
 
   /**
-   * Call when the user's session ends (e.g. on logout). Every node closes the user's open SSE connections,
-   * including ones still opening. The user's topics are kept.
+   * Call when one of the user's login sessions ends (e.g. on logout). Every node closes that session's open SSE
+   * connections, including ones still opening. The user's other sessions (other devices or browsers) are untouched,
+   * and so are the user's topics.
    *
-   * Closes every device of the user, not just the one that logged out: the others reconnect on their own,
-   * with their still-valid cookies, while the logged-out browser gets a 401 and stops.
+   * Published on the user's channel, since only the nodes holding the user's connections need it.
    */
-  async closeUserConnections(userId: string): Promise<void> {
+  async closeSessionConnections(props: UserSessionProps): Promise<void> {
+    const { userId, sessionId } = props;
+
     const userEventsChannel = getUserEventsChannel(userId);
     const sseControlMessage: SseSessionEndedControlMessage = {
       control: SseControlTypes.SessionEnded,
+      props: { sessionId },
     };
     const sseControlMessageStringified = JSON.stringify(sseControlMessage);
 

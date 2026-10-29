@@ -31,10 +31,17 @@ type PropsValidator = (props: unknown) => boolean;
 const PROPS_VALIDATORS_BY_CONTROL_TYPE: Partial<Record<SseControlTypeValues, PropsValidator>> = {
   [SseControlTypes.TopicJoined]: isTopicControlMessageProps,
   [SseControlTypes.TopicLeft]: isTopicControlMessageProps,
+  [SseControlTypes.SessionEnded]: isSessionEndedControlMessageProps,
 };
 
 function isTopicControlMessageProps(props: any): boolean {
-  const { topic } = props;
+  const { topic } = props ?? {};
 
   return typeof topic === 'string';
+}
+
+function isSessionEndedControlMessageProps(props: any): boolean {
+  const { sessionId } = props ?? {};
+
+  return typeof sessionId === 'string';
 }
