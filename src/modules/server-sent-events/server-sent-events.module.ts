@@ -41,6 +41,15 @@ export class ServerSentEventsModule implements ModuleFactory {
     }
   }
 
+  /**
+   * Call on shutdown. Unsubscribes from Redis first so nothing new is fanned out, then closes all connections.
+   */
+  async cleanup(): Promise<void> {
+    await this.serverSentEventsService.cleanup();
+
+    await this.sseConnectionsService.closeAllConnections();
+  }
+
   private attachControllers(): void {
     const serverSentEventsController = new ServerSentEventsController(this.app, this.sseConnectionsService);
 

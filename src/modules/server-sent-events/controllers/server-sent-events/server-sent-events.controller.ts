@@ -1,5 +1,5 @@
 import { API_PATHS, StatusCodes } from '@src/common/constants';
-import { SseEventNames } from '../../logic/constants';
+import { SSE_RETRY_MS, SseEventNames } from '../../logic/constants';
 import { formatSseMessage } from '../../logic/utils/format-sse-message';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
@@ -39,8 +39,13 @@ export class ServerSentEventsController implements ControllerFactory {
   }
 
   private sendConnectedMessage(connection: SseConnection) {
-    const connectedData = JSON.stringify({ connectionId: connection.id });
-    const connectedMessage = formatSseMessage({ event: SseEventNames.Connected, data: connectedData });
+    const connectedDataAsString = JSON.stringify({ connectionId: connection.id });
+
+    const connectedMessage = formatSseMessage({
+      event: SseEventNames.Connected,
+      data: connectedDataAsString,
+      retry: SSE_RETRY_MS,
+    });
 
     this.sseConnectionsService.send({
       connectionId: connection.id,

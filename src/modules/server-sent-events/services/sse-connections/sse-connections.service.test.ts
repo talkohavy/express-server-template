@@ -1,17 +1,39 @@
+import { EventEmitter } from 'node:events';
+import {
+  SSE_DRAIN_TIMEOUT_MS,
+  SSE_HEARTBEAT_INTERVAL_MS,
+  SSE_MAX_BUFFERED_BYTES,
+  SSE_SHUTDOWN_FLUSH_TIMEOUT_MS,
+  SSE_SHUTDOWN_RETRY_JITTER_MS,
+  SSE_SHUTDOWN_RETRY_MIN_MS,
+} from '../../logic/constants';
 import { SseConnectionsService } from './sse-connections.service';
 import type { Response } from 'express';
 import type { LoggerService } from '@src/core/services/logger';
 
+type ResponseMock = Response & {
+  write: jest.Mock;
+  end: jest.Mock;
+  destroy: jest.Mock;
+};
+
 function createLoggerMock() {
-  const logger = { debug: jest.fn(), info: jest.fn(), error: jest.fn() } as unknown as LoggerService;
+  const logger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as LoggerService;
 
   return logger;
 }
 
-function createResponseMock(props?: { writableEnded?: boolean }) {
-  const { writableEnded = false } = props ?? {};
+function createResponseMock(props?: { writableEnded?: boolean; writableLength?: number }) {
+  const { writableEnded = false, writableLength = 0 } = props ?? {};
 
-  const response = { write: jest.fn(), writableEnded, destroyed: false } as unknown as Response;
+  const response = Object.assign(new EventEmitter(), {
+    write: jest.fn().mockReturnValue(true),
+    end: jest.fn((_chunk: string, callback: () => void) => callback()),
+    destroy: jest.fn(),
+    writableEnded,
+    writableLength,
+    destroyed: false,
+  }) as unknown as ResponseMock;
 
   return response;
 }
@@ -115,6 +137,177 @@ describe('SseConnectionsService', () => {
       service.sendToAll('data: x\n\n');
 
       expect(healthyResponse.write).toHaveBeenCalledWith('data: x\n\n');
+    });
+  });
+
+  describe('heartbeat', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should send a ping comment to every connection on each interval', () => {
+      const responses = [createResponseMock(), createResponseMock()];
+      responses.forEach((response) => service.register(response));
+
+      jest.advanceTimersByTime(SSE_HEARTBEAT_INTERVAL_MS);
+
+      responses.forEach((response) => expect(response.write).toHaveBeenCalledWith(': ping\n\n'));
+    });
+
+    it('should not start more than one heartbeat timer', () => {
+      service.register(createResponseMock());
+      service.register(createResponseMock());
+
+      const actualResult = jest.getTimerCount();
+
+      expect(actualResult).toBe(1);
+    });
+
+    it('should stop the heartbeat once the last connection is unregistered', () => {
+      const connection = service.register(createResponseMock());
+
+      service.unregister(connection.id);
+
+      const actualResult = jest.getTimerCount();
+
+      expect(actualResult).toBe(0);
+    });
+
+    it('should keep the heartbeat running while other connections remain', () => {
+      const first = service.register(createResponseMock());
+      const secondResponse = createResponseMock();
+      service.register(secondResponse);
+
+      service.unregister(first.id);
+      jest.advanceTimersByTime(SSE_HEARTBEAT_INTERVAL_MS);
+
+      expect(secondResponse.write).toHaveBeenCalledWith(': ping\n\n');
+    });
+  });
+
+  describe('backpressure', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should destroy a connection whose buffer exceeds the limit', () => {
+      const response = createResponseMock({ writableLength: SSE_MAX_BUFFERED_BYTES + 1 });
+      const connection = service.register(response);
+
+      const actualResult = service.send({ connectionId: connection.id, message: 'data: x\n\n' });
+
+      expect(actualResult).toBe(false);
+      expect(response.destroy).toHaveBeenCalled();
+      expect(service.getConnectionsCount()).toBe(0);
+    });
+
+    it('should destroy a connection that does not drain within the timeout', () => {
+      const response = createResponseMock();
+      response.write.mockReturnValue(false);
+      const connection = service.register(response);
+
+      service.send({ connectionId: connection.id, message: 'data: x\n\n' });
+      jest.advanceTimersByTime(SSE_DRAIN_TIMEOUT_MS);
+
+      expect(response.destroy).toHaveBeenCalled();
+    });
+
+    it('should keep a connection that drains before the timeout', () => {
+      const response = createResponseMock();
+      response.write.mockReturnValue(false);
+      const connection = service.register(response);
+
+      service.send({ connectionId: connection.id, message: 'data: x\n\n' });
+      response.emit('drain');
+      jest.advanceTimersByTime(SSE_DRAIN_TIMEOUT_MS);
+
+      expect(response.destroy).not.toHaveBeenCalled();
+    });
+
+    it('should clear a pending drain timeout when the connection is unregistered', () => {
+      const response = createResponseMock();
+      response.write.mockReturnValue(false);
+      const connection = service.register(response);
+
+      service.send({ connectionId: connection.id, message: 'data: x\n\n' });
+      service.unregister(connection.id);
+      jest.advanceTimersByTime(SSE_DRAIN_TIMEOUT_MS);
+
+      expect(response.destroy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('closeAllConnections', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should end every response with a retry inside the jitter range', async () => {
+      const responses = [createResponseMock(), createResponseMock(), createResponseMock()];
+      responses.forEach((response) => service.register(response));
+
+      await service.closeAllConnections();
+
+      responses.forEach((response) => {
+        const [chunk] = response.end.mock.calls[0];
+        const retry = Number(/^retry: (\d+)\n\n$/.exec(chunk)?.[1]);
+
+        expect(retry).toBeGreaterThanOrEqual(SSE_SHUTDOWN_RETRY_MIN_MS);
+        expect(retry).toBeLessThan(SSE_SHUTDOWN_RETRY_MIN_MS + SSE_SHUTDOWN_RETRY_JITTER_MS);
+      });
+    });
+
+    it('should not end a response that already ended', async () => {
+      const response = createResponseMock({ writableEnded: true });
+      service.register(response);
+
+      await service.closeAllConnections();
+
+      expect(response.end).not.toHaveBeenCalled();
+    });
+
+    it('should empty the registry and stop the heartbeat', async () => {
+      service.register(createResponseMock());
+
+      await service.closeAllConnections();
+
+      expect(service.getConnectionsCount()).toBe(0);
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('should clear a pending drain timeout so it does not fire after shutdown', async () => {
+      const response = createResponseMock();
+      response.write.mockReturnValue(false);
+      const connection = service.register(response);
+      service.send({ connectionId: connection.id, message: 'data: x\n\n' });
+
+      await service.closeAllConnections();
+      jest.advanceTimersByTime(SSE_DRAIN_TIMEOUT_MS);
+
+      expect(response.destroy).not.toHaveBeenCalled();
+    });
+
+    it('should resolve after the flush timeout when a response never finishes', async () => {
+      const response = createResponseMock();
+      response.end.mockImplementation(() => {});
+      service.register(response);
+
+      const closePromise = service.closeAllConnections();
+      await jest.advanceTimersByTimeAsync(SSE_SHUTDOWN_FLUSH_TIMEOUT_MS);
+
+      await expect(closePromise).resolves.toBeUndefined();
     });
   });
 });
