@@ -21,6 +21,7 @@ import type { ModuleFactory } from '@src/lib/lucky-server';
 export class ServerSentEventsModule implements ModuleFactory {
   private sseConnectionsService!: SseConnectionsService;
   private sseConnectionLimiterService!: SseConnectionLimiterService;
+  private sseChannelSubscriberService!: SseChannelSubscriberService;
   private serverSentEventsService!: ServerSentEventsService;
 
   constructor(private readonly app: Application) {}
@@ -35,11 +36,11 @@ export class ServerSentEventsModule implements ModuleFactory {
       this.sseConnectionsService,
       redisPubClient,
     );
-    const sseChannelSubscriberService = new SseChannelSubscriberService(logger, redisSubClient);
+    this.sseChannelSubscriberService = new SseChannelSubscriberService(logger, redisSubClient);
     this.serverSentEventsService = new ServerSentEventsService(
       logger,
       this.sseConnectionsService,
-      sseChannelSubscriberService,
+      this.sseChannelSubscriberService,
       sseTopics,
     );
 
