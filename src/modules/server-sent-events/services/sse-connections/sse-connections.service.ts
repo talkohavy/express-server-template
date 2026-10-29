@@ -236,16 +236,6 @@ export class SseConnectionsService {
     return this.connectionsBySocketId.size;
   }
 
-  /**
-   * Counts this node's connections only.
-   * The same user may hold more connections on other nodes.
-   */
-  getUserConnectionsCount(userId: string): number {
-    const userSocketIds = this.socketIdsByUserId.get(userId);
-
-    return userSocketIds?.size ?? 0;
-  }
-
   getSocketIdsByUserId(): ReadonlyMap<string, ReadonlySet<string>> {
     return this.socketIdsByUserId;
   }

@@ -55,6 +55,12 @@ function createResponseMock(props?: { writableEnded?: boolean; writableLength?: 
 describe('SseConnectionsService', () => {
   let service: SseConnectionsService;
 
+  function getUserConnectionsCount(userId: string): number {
+    const userSocketIds = service.getSocketIdsByUserId().get(userId);
+
+    return userSocketIds?.size ?? 0;
+  }
+
   beforeEach(() => {
     service = new SseConnectionsService(createLoggerMock());
   });
@@ -136,7 +142,7 @@ describe('SseConnectionsService', () => {
     });
   });
 
-  describe('getUserConnectionsCount', () => {
+  describe('user index', () => {
     it('should count connections per user', () => {
       service.register({
         sessionId: SESSION_ID,
@@ -163,15 +169,15 @@ describe('SseConnectionsService', () => {
       const expectedResult = { [USER_ID]: 2, [OTHER_USER_ID]: 1 };
 
       const actualResult = {
-        [USER_ID]: service.getUserConnectionsCount(USER_ID),
-        [OTHER_USER_ID]: service.getUserConnectionsCount(OTHER_USER_ID),
+        [USER_ID]: getUserConnectionsCount(USER_ID),
+        [OTHER_USER_ID]: getUserConnectionsCount(OTHER_USER_ID),
       };
 
       expect(actualResult).toEqual(expectedResult);
     });
 
     it('should return 0 for a user with no connections', () => {
-      const actualResult = service.getUserConnectionsCount('unknown-user');
+      const actualResult = getUserConnectionsCount('unknown-user');
 
       expect(actualResult).toBe(0);
     });
@@ -194,7 +200,7 @@ describe('SseConnectionsService', () => {
 
       service.unregister(first.socketId);
 
-      const actualResult = service.getUserConnectionsCount(USER_ID);
+      const actualResult = getUserConnectionsCount(USER_ID);
 
       expect(actualResult).toBe(1);
     });
@@ -211,7 +217,7 @@ describe('SseConnectionsService', () => {
 
       service.send({ socketId: connection.socketId, message: 'data: x\n\n' });
 
-      const actualResult = service.getUserConnectionsCount(USER_ID);
+      const actualResult = getUserConnectionsCount(USER_ID);
 
       expect(actualResult).toBe(0);
     });
@@ -236,7 +242,7 @@ describe('SseConnectionsService', () => {
 
       const expectedResult = [0, 0];
 
-      const actualResult = [service.getUserConnectionsCount(USER_ID), service.getUserConnectionsCount(OTHER_USER_ID)];
+      const actualResult = [getUserConnectionsCount(USER_ID), getUserConnectionsCount(OTHER_USER_ID)];
 
       expect(actualResult).toEqual(expectedResult);
     });

@@ -192,7 +192,7 @@ export class ServerSentEventsService {
     // Step 3: Get userSocketIds.
     const userSocketIds = this.sseConnectionsService.getSocketIdsByUserId().get(userId);
 
-    // Step 4: Apply the control message to all user sockets that are still loading.
+    // Step 4: Apply the control message to all of the user's open (registered) sockets.
     if (userSocketIds) {
       userSocketIds.forEach((socketId) => {
         this.applyControlMessage({ socketId, controlMessage });
@@ -259,11 +259,11 @@ export class ServerSentEventsService {
     // Step 3: Subscribe to the topic events.
     const isSubscribed = await this.subscribeToTopicEvents({ socketId, topic });
 
-    // Step 4: If the topic is not subscribed, remove the topic from the connection.
+    // Step 4: If the subscription succeeded, the connection is done.
     if (isSubscribed) return;
 
-    // Step 5: If the topic is subscribed, check if the connection is still holding the channel.
-    // Stop routing the topic to the connection, unless a later join made it hold the channel again.
+    // Step 5: The subscription failed: stop routing the topic to the connection,
+    // unless a later join made it hold the channel again.
     const topicEventsChannel = getTopicEventsChannel(topic);
 
     const isHolding = this.sseChannelSubscriberService.isSocketSubscribed({
