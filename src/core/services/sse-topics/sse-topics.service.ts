@@ -1,5 +1,5 @@
 import { getUserEventsChannel } from '@src/core/services/sse-publisher';
-import { SseControlTypes } from './logic/constants';
+import { ADD_USER_TO_TOPIC_LIMIT_REACHED, SSE_MAX_TOPICS_PER_USER, SseControlTypes } from './logic/constants';
 import { ADD_USER_TO_TOPIC_SCRIPT, REMOVE_USER_FROM_TOPIC_SCRIPT } from './logic/lua-scripts';
 import { getUserTopicsKey } from './logic/utils';
 import type { RedisClientType } from 'redis';
@@ -51,6 +51,7 @@ export class SseTopicsService {
    * The messages stay in order relative to each other, due to both message kinds traveling on the same user channel.
    *
    * @returns `true` if the user was added (and the control message was published), `false` if they were already in the topic.
+   * @throws if the user is already in {@link SSE_MAX_TOPICS_PER_USER} topics.
    */
   async addUserToTopic(props: UserTopicProps): Promise<boolean> {
     const { userId, topic } = props;
@@ -71,11 +72,18 @@ export class SseTopicsService {
       topic,
       userEventsChannel,
       sseControlMessageStringified,
+      String(SSE_MAX_TOPICS_PER_USER),
     ];
 
     const result = await this.redisPubClient.sendCommand(command);
 
-    const isAdded = Number(result) === 1;
+    const resultAsNumber = Number(result);
+
+    if (resultAsNumber === ADD_USER_TO_TOPIC_LIMIT_REACHED) {
+      throw new Error(`User ${userId} reached the limit of ${SSE_MAX_TOPICS_PER_USER} SSE topics`);
+    }
+
+    const isAdded = resultAsNumber === 1;
 
     return isAdded;
   }

@@ -1,3 +1,4 @@
+import { SSE_MAX_TOPICS_PER_USER } from './logic/constants';
 import { ADD_USER_TO_TOPIC_SCRIPT, REMOVE_USER_FROM_TOPIC_SCRIPT } from './logic/lua-scripts';
 import { SseTopicsService } from './sse-topics.service';
 import type { RedisClientType } from 'redis';
@@ -25,6 +26,7 @@ describe('SseTopicsService', () => {
         'chat:7',
         'sse:events:user:user-1',
         JSON.stringify({ control: 'topic-joined', props: { topic: 'chat:7' } }),
+        String(SSE_MAX_TOPICS_PER_USER),
       ];
 
       await service.addUserToTopic({ userId: 'user-1', topic: 'chat:7' });
@@ -46,6 +48,14 @@ describe('SseTopicsService', () => {
       const actualResult = await service.addUserToTopic({ userId: 'user-1', topic: 'chat:7' });
 
       expect(actualResult).toBe(false);
+    });
+
+    it('should throw when the user is at the topics limit', async () => {
+      redisPubClient.sendCommand.mockResolvedValue(-1);
+
+      await expect(service.addUserToTopic({ userId: 'user-1', topic: 'chat:7' })).rejects.toThrow(
+        `reached the limit of ${SSE_MAX_TOPICS_PER_USER} SSE topics`,
+      );
     });
   });
 
