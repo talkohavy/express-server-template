@@ -1,6 +1,5 @@
 import cors from 'cors';
-import { Environment, type EnvironmentValues } from '@src/common/constants';
-import { ConfigKeys } from '@src/plugins/config-service';
+import { ConfigKeys, type CorsConfig } from '@src/plugins/config-service';
 import { handleCors } from './logic/utils/handleCors';
 import type { Application } from 'express';
 
@@ -11,18 +10,16 @@ import type { Application } from 'express';
  * - config-service plugin
  */
 export function registerCorsMiddleware(app: Application) {
-  const isDev = app.configService.get<boolean>(ConfigKeys.IsDev);
+  const { isStrict } = app.configService.get<CorsConfig>(ConfigKeys.Cors);
 
-  const environment = isDev ? Environment.Dev : Environment.Prod;
-
-  const middleware = corsMiddleware(environment);
+  const middleware = corsMiddleware(isStrict);
 
   app.use(middleware);
 }
 
-function corsMiddleware(environment: EnvironmentValues) {
+function corsMiddleware(isStrict: boolean) {
   return cors({
-    origin: handleCors(environment),
+    origin: handleCors(isStrict),
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     credentials: true, // <--- Important! You'll get CORS Error without it.
   });

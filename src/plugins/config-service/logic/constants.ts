@@ -1,10 +1,19 @@
 import type { RedisConfig } from '@src/core/connections/redis';
-import type { AuthCookieConfig, CookiesConfig, JwtConfig, LoggerServiceSettings, PostgresConfig } from '../types';
+import type {
+  AuthCookieConfig,
+  CookiesConfig,
+  CorsConfig,
+  JwtConfig,
+  LoggerServiceSettings,
+  PostgresConfig,
+} from '../types';
 
 export const ConfigKeys = {
   Port: 'port',
+  ExposeInternalErrors: 'exposeInternalErrors',
   AuthCookie: 'authCookie',
   Cookies: 'cookies',
+  Cors: 'cors',
   Jwt: 'jwt',
   LogSettings: 'logSettings',
   Postgres: 'postgres',
@@ -16,8 +25,10 @@ export type ConfigKeyValues = (typeof ConfigKeys)[keyof typeof ConfigKeys];
 
 export type Config = {
   [ConfigKeys.Port]: number;
+  [ConfigKeys.ExposeInternalErrors]: boolean;
   [ConfigKeys.AuthCookie]: AuthCookieConfig;
   [ConfigKeys.Cookies]: CookiesConfig;
+  [ConfigKeys.Cors]: CorsConfig;
   [ConfigKeys.Jwt]: JwtConfig;
   [ConfigKeys.LogSettings]: LoggerServiceSettings;
   [ConfigKeys.Postgres]: PostgresConfig;

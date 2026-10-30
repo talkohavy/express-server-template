@@ -36,9 +36,21 @@ export type FeatureFlagsTable = {
   updated_at: Generated<Date>;
 };
 
+export type RefreshTokensTable = {
+  id: string;
+  user_id: number;
+  family_id: string;
+  token_hash: string;
+  expires_at: Date;
+  session_expires_at: Date;
+  revoked_at: Date | null;
+  created_at: Generated<Date>;
+};
+
 export type Database = {
   users: UsersTable;
   products: ProductsTable;
   orders: OrdersTable;
   feature_flags: FeatureFlagsTable;
+  refresh_tokens: RefreshTokensTable;
 };

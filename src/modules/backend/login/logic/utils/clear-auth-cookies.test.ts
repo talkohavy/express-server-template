@@ -4,8 +4,8 @@ import type { CookiesConfig } from '@src/plugins/config-service';
 
 describe('clearAuthCookies', () => {
   const cookiesConfig: CookiesConfig = {
-    accessCookie: { name: 'access_token', domain: '.example.com', path: '/', maxAge: 1000 },
-    refreshCookie: { name: 'refresh_token', domain: '.example.com', path: '/api/auth', maxAge: 5000 },
+    accessCookie: { name: 'access_token', domain: '.example.com', path: '/', maxAge: 1000, isSecure: true },
+    refreshCookie: { name: 'refresh_token', domain: '.example.com', path: '/api/auth', maxAge: 5000, isSecure: true },
   };
 
   let res: { clearCookie: jest.Mock };
@@ -23,7 +23,7 @@ describe('clearAuthCookies', () => {
       ],
     ];
 
-    clearAuthCookies({ res: res as unknown as Response, cookiesConfig, isDev: false });
+    clearAuthCookies({ res: res as unknown as Response, cookiesConfig });
 
     const actualResult = res.clearCookie.mock.calls;
     expect(actualResult).toEqual(expectedResult);

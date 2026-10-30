@@ -32,7 +32,9 @@ export const envSchema = Joi.object<ValidEnv>({
     .default(Environment.Dev),
   USE_PRETTY_PRINT: Joi.boolean().default(false),
   SHOULD_MIGRATE_POSTGRES: Joi.boolean().default(false),
-  DOMAIN: Joi.string().default(undefined),
+  DOMAIN: Joi.string().optional(),
   IS_SECURE: Joi.boolean().default(true),
+  IS_STRICT_CORS: Joi.boolean().default(true),
+  EXPOSE_INTERNAL_ERRORS: Joi.boolean().default(false),
   WEBSOCKET_MODULE: Joi.string().valid('socket.io', 'ws').optional(),
 }).unknown(true);

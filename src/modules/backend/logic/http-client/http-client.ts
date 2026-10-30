@@ -1,6 +1,6 @@
 import { StatusCodeToError, HttpMethod, type StatusCodeValues } from '@src/common/constants';
 import { InternalServerError } from '@src/core/errors';
-import { ConfigKeys, type Config, type ServicesConfig } from '@src/plugins/config-service';
+import { ConfigKeys, type ServicesConfig } from '@src/plugins/config-service';
 import type { ConfigService } from '@src/core/services/config';
 import type { GetRequestProps, RequestProps, RequestWithBodyProps } from './http-client.interface';
 
@@ -74,8 +74,8 @@ export class HttpClient {
     } catch (error) {
       if (silent) return undefined as T;
 
-      const { isDev } = this.configService.get<Config>();
-      const errorMessage = isDev ? error.message : 'Request between micro-services failed...';
+      const shouldExposeInternalErrors = this.configService.get<boolean>(ConfigKeys.ExposeInternalErrors);
+      const errorMessage = shouldExposeInternalErrors ? error.message : 'Request between micro-services failed...';
 
       throw new InternalServerError(errorMessage);
     }

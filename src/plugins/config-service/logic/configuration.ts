@@ -6,6 +6,7 @@ export function configuration(): Config {
 
   return {
     port: env.PORT,
+    exposeInternalErrors: env.EXPOSE_INTERNAL_ERRORS,
     authCookie: {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     },
@@ -31,6 +32,9 @@ export function configuration(): Config {
         isSecure: env.IS_SECURE,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
       },
+    },
+    cors: {
+      isStrict: env.IS_STRICT_CORS,
     },
     logSettings: {
       serviceName: env.SERVICE_NAME,
