@@ -1,5 +1,5 @@
-import { StatusCodeToError, HttpMethod, type StatusCodeValues } from '@src/common/constants';
-import { InternalServerError } from '@src/core/errors';
+import { StatusCodeToError, StatusCodes, HttpMethod, type StatusCodeValues } from '@src/common/constants';
+import { HttpException, InternalServerError } from '@src/core/errors';
 import { ConfigKeys, type ServicesConfig } from '@src/plugins/config-service';
 import type { ConfigService } from '@src/core/services/config';
 import type { GetRequestProps, RequestProps, RequestWithBodyProps } from './http-client.interface';
@@ -73,6 +73,11 @@ export class HttpClient {
       return data as T;
     } catch (error) {
       if (silent) return undefined as T;
+
+      // Callers act on the other service's 4xx answers (e.g. a 401 for a used refresh token), so keep their status.
+      const isClientError = error instanceof HttpException && error.statusCode < StatusCodes.INTERNAL_ERROR;
+
+      if (isClientError) throw error;
 
       const shouldExposeInternalErrors = this.configService.get<boolean>(ConfigKeys.ExposeInternalErrors);
       const errorMessage = shouldExposeInternalErrors ? error.message : 'Request between micro-services failed...';

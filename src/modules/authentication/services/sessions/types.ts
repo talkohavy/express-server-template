@@ -33,3 +33,11 @@ export type CreateTokensResult = {
    */
   refreshTokenExpiresAt: number;
 };
+
+export type ConsumeRefreshTokenResult = {
+  userId: string;
+  /**
+   * The session the consumed token belonged to. Pass it to `createTokens` to issue the session's next token.
+   */
+  session: Session;
+};

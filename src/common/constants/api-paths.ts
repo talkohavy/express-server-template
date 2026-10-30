@@ -5,7 +5,9 @@ export const API_PATHS = {
   auth: '/api/auth',
   authLogin: '/api/auth/login',
   authLogout: '/api/auth/logout',
+  authRefresh: '/api/auth/refresh',
   createTokens: '/api/auth/tokens',
+  consumeRefreshToken: '/api/auth/consume-refresh-token',
   verifyToken: '/api/auth/verify-token',
   isPasswordValid: '/api/auth/is-password-valid',
   // users

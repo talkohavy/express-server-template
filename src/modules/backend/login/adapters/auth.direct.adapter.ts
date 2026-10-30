@@ -1,7 +1,13 @@
 import type { PasswordManagementService } from '../../../authentication/services/password-management';
 import type { SessionsService } from '../../../authentication/services/sessions';
 import type { TokenVerificationService } from '../../../authentication/services/token-verification';
-import type { CreateTokensProps, IAuthAdapter, Tokens, DecodedToken } from './auth.adapter.interface';
+import type {
+  ConsumedRefreshToken,
+  CreateTokensProps,
+  IAuthAdapter,
+  Tokens,
+  DecodedToken,
+} from './auth.adapter.interface';
 
 export class AuthDirectAdapter implements IAuthAdapter {
   constructor(
@@ -20,6 +26,10 @@ export class AuthDirectAdapter implements IAuthAdapter {
 
   async createTokens(props: CreateTokensProps): Promise<Tokens> {
     return this.sessionsService.createTokens(props);
+  }
+
+  async consumeRefreshToken(refreshToken: string): Promise<ConsumedRefreshToken> {
+    return this.sessionsService.consumeRefreshToken(refreshToken);
   }
 
   async verifyToken(token: string): Promise<DecodedToken> {

@@ -56,7 +56,7 @@ export class AuthenticationModule implements ModuleFactory {
     const passwordManagementController = new PasswordManagementController(this.app, this.passwordManagementService);
     const tokenGenerationController = new TokenGenerationController(this.app, this.sessionsService);
     const tokenVerificationController = new TokenVerificationController(this.app, this.tokenVerificationService);
-    const sessionManagementController = new SessionManagementController(this.app);
+    const sessionManagementController = new SessionManagementController(this.app, this.sessionsService);
 
     const authenticationController = new AuthenticationController(
       passwordManagementController,

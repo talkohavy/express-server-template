@@ -37,6 +37,14 @@ export type CreateTokensProps = {
   session?: Session;
 };
 
+export type ConsumedRefreshToken = {
+  userId: string;
+  /**
+   * The session the consumed token belonged to. Pass it to `createTokens` to continue it.
+   */
+  session: Session;
+};
+
 export type DecodedToken = {
   id: string;
   role: string;
@@ -67,6 +75,13 @@ export interface IAuthAdapter {
    * Creates an access token, and a refresh token that is stored in the DB.
    */
   createTokens(props: CreateTokensProps): Promise<Tokens>;
+
+  /**
+   * Uses up a refresh token, so it can't be used again. Reusing a token revokes its whole session.
+   *
+   * @throws {UnauthorizedError} when the token is unknown, expired, or already used.
+   */
+  consumeRefreshToken(refreshToken: string): Promise<ConsumedRefreshToken>;
 
   /**
    * Verifies an access token and returns the decoded payload

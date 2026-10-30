@@ -1,7 +1,13 @@
 import { API_PATHS } from '@src/common/constants';
 import { ServiceNames } from '@src/plugins/config-service';
 import type { HttpClient } from '../../logic/http-client';
-import type { CreateTokensProps, IAuthAdapter, Tokens, DecodedToken } from './auth.adapter.interface';
+import type {
+  ConsumedRefreshToken,
+  CreateTokensProps,
+  IAuthAdapter,
+  Tokens,
+  DecodedToken,
+} from './auth.adapter.interface';
 
 export class AuthHttpAdapter implements IAuthAdapter {
   constructor(private readonly httpClient: HttpClient) {}
@@ -33,6 +39,16 @@ export class AuthHttpAdapter implements IAuthAdapter {
       serviceName: ServiceNames.Auth,
       route: API_PATHS.createTokens,
       body: { userId, role, session },
+    });
+
+    return response;
+  }
+
+  async consumeRefreshToken(refreshToken: string): Promise<ConsumedRefreshToken> {
+    const response = await this.httpClient.post<ConsumedRefreshToken>({
+      serviceName: ServiceNames.Auth,
+      route: API_PATHS.consumeRefreshToken,
+      body: { refreshToken },
     });
 
     return response;

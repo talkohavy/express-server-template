@@ -1,5 +1,5 @@
 import { API_PATHS, StatusCodes } from '@src/common/constants';
-import { BadRequestError } from '@src/core/errors';
+import { BadRequestError, UnauthorizedError } from '@src/core/errors';
 import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
 import { ConfigKeys, type CookiesConfig } from '@src/plugins/config-service';
 import { UserNotFoundError } from '../../../../users/logic/errors/user-not-found.error';
@@ -20,6 +20,7 @@ export class LoginController implements ControllerFactory {
 
   registerRoutes() {
     this.login();
+    this.refresh();
     this.logout();
   }
 
@@ -61,6 +62,53 @@ export class LoginController implements ControllerFactory {
         }
 
         throw error;
+      }
+    });
+  }
+
+  /**
+   * Swaps the refresh cookie for a fresh pair of cookies, continuing the same session.
+   * The used refresh token can't be used again.
+   *
+   * Responds with 401 when the session can't continue (the client should send the user to log in).
+   */
+  private refresh() {
+    this.app.post(API_PATHS.authRefresh, async (req: Request, res: Response) => {
+      this.app.logger.info(`POST ${API_PATHS.authRefresh} - refresh the session`);
+
+      const cookiesConfig = this.app.configService.get<CookiesConfig>(ConfigKeys.Cookies);
+
+      const refreshToken: string | undefined = req.cookies?.[cookiesConfig.refreshCookie.name];
+
+      if (!refreshToken) throw new UnauthorizedError('No refresh token provided');
+
+      try {
+        // Step 1: Use up the refresh token
+        const { userId, session } = await this.authAdapter.consumeRefreshToken(refreshToken);
+
+        // Step 2: Re-read the user, so a deleted user can't refresh, and a role change applies
+        const user = await this.usersAdapter.getUserById(userId);
+
+        // Step 3: Issue the session's next tokens
+        const tokens = await this.authAdapter.createTokens({ userId, role: user.role, session });
+
+        // Step 4: Set cookies
+        setAuthCookies({ res, tokens, cookiesConfig });
+
+        res.status(StatusCodes.NO_CONTENT).end();
+      } catch (error) {
+        /**
+         * When using Direct Adapter, a missing user is thrown as a UserNotFoundError,
+         * however, when using Http Adapter, it is thrown as a HttpException with status code 404.
+         */
+        const isUserGone = error instanceof UserNotFoundError || error.statusCode === StatusCodes.NOT_FOUND;
+        const isSessionOver = isUserGone || error.statusCode === StatusCodes.UNAUTHORIZED;
+
+        if (!isSessionOver) throw error;
+
+        clearAuthCookies({ res, cookiesConfig });
+
+        throw new UnauthorizedError('The session has ended, please log in again');
       }
     });
   }

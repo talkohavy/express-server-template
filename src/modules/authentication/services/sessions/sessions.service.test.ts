@@ -1,3 +1,4 @@
+import { UnauthorizedError } from '@src/core/errors';
 import { hashToken } from '../../logic/utils/hashToken';
 import { SessionsService } from './sessions.service';
 import type { RefreshTokensRepository } from '../../repositories/refresh-tokens';
@@ -13,14 +14,24 @@ describe('SessionsService', () => {
   const now = new Date('2026-01-01T00:00:00.000Z').getTime();
   const refreshTokenConfig = { ttlMs: 7 * DAY_MS, sessionMaxAgeMs: 30 * DAY_MS };
 
-  let refreshTokensRepository: { create: jest.Mock };
+  let refreshTokensRepository: {
+    create: jest.Mock;
+    consumeByHash: jest.Mock;
+    getByHash: jest.Mock;
+    revokeFamily: jest.Mock;
+  };
   let tokenGenerationService: { createAccessToken: jest.Mock; createRefreshToken: jest.Mock };
   let service: SessionsService;
 
   beforeEach(() => {
     jest.spyOn(Date, 'now').mockReturnValue(now);
 
-    refreshTokensRepository = { create: jest.fn() };
+    refreshTokensRepository = {
+      create: jest.fn(),
+      consumeByHash: jest.fn().mockResolvedValue(null),
+      getByHash: jest.fn().mockResolvedValue(null),
+      revokeFamily: jest.fn(),
+    };
     tokenGenerationService = {
       createAccessToken: jest.fn().mockResolvedValue({ accessToken: 'access-token', expiresAt: now + 900_000 }),
       createRefreshToken: jest.fn().mockReturnValue('raw-refresh-token'),
@@ -103,6 +114,98 @@ describe('SessionsService', () => {
         });
 
         expect(actualResult).toBe(expectedResult);
+      });
+    });
+  });
+
+  describe('consumeRefreshToken', () => {
+    const storedToken = {
+      id: 'row-id',
+      user_id: 7,
+      family_id: 'session-id',
+      token_hash: hashToken('raw-refresh-token'),
+      expires_at: new Date(now + 7 * DAY_MS),
+      session_expires_at: new Date(now + 20 * DAY_MS),
+      revoked_at: null,
+      created_at: new Date(now),
+    };
+
+    async function consumeIgnoringRejection(refreshToken: string): Promise<void> {
+      try {
+        await service.consumeRefreshToken(refreshToken);
+      } catch {
+        // Each rejection is asserted in its own test.
+      }
+    }
+
+    describe('with a live token', () => {
+      it('should consume the token by its hash, never by the raw token', async () => {
+        const expectedResult = hashToken('raw-refresh-token');
+        refreshTokensRepository.consumeByHash.mockResolvedValue(storedToken);
+
+        await service.consumeRefreshToken('raw-refresh-token');
+
+        const actualResult = refreshTokensRepository.consumeByHash.mock.calls[0][0];
+        expect(actualResult).toBe(expectedResult);
+      });
+
+      it('should return the user and the session the token belonged to', async () => {
+        const expectedResult = { userId: '7', session: { id: 'session-id', expiresAt: now + 20 * DAY_MS } };
+        refreshTokensRepository.consumeByHash.mockResolvedValue(storedToken);
+
+        const actualResult = await service.consumeRefreshToken('raw-refresh-token');
+
+        expect(actualResult).toEqual(expectedResult);
+      });
+    });
+
+    describe('with a reused token', () => {
+      beforeEach(() => {
+        refreshTokensRepository.getByHash.mockResolvedValue({ ...storedToken, revoked_at: new Date(now - 1000) });
+      });
+
+      it('should revoke the whole session', async () => {
+        await consumeIgnoringRejection('raw-refresh-token');
+
+        expect(refreshTokensRepository.revokeFamily).toHaveBeenCalledWith('session-id');
+      });
+
+      it('should reject with UnauthorizedError', async () => {
+        const actualResult = service.consumeRefreshToken('raw-refresh-token');
+
+        await expect(actualResult).rejects.toThrow(UnauthorizedError);
+      });
+    });
+
+    describe('with an expired token', () => {
+      beforeEach(() => {
+        refreshTokensRepository.getByHash.mockResolvedValue({ ...storedToken, expires_at: new Date(now - 1000) });
+      });
+
+      it('should reject with UnauthorizedError', async () => {
+        const actualResult = service.consumeRefreshToken('raw-refresh-token');
+
+        await expect(actualResult).rejects.toThrow(UnauthorizedError);
+      });
+
+      it('should not revoke the session', async () => {
+        await consumeIgnoringRejection('raw-refresh-token');
+
+        expect(refreshTokensRepository.revokeFamily).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('with an unknown token', () => {
+      it('should reject with UnauthorizedError', async () => {
+        const actualResult = service.consumeRefreshToken('unknown-token');
+
+        await expect(actualResult).rejects.toThrow(UnauthorizedError);
+      });
+
+      it('should not revoke anything', async () => {
+        await consumeIgnoringRejection('unknown-token');
+
+        expect(refreshTokensRepository.revokeFamily).not.toHaveBeenCalled();
       });
     });
   });
