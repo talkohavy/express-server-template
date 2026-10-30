@@ -1,6 +1,40 @@
 export type Tokens = {
   accessToken: string;
+  /**
+   * In milliseconds since the epoch.
+   */
+  accessTokenExpiresAt: number;
   refreshToken: string;
+  /**
+   * In milliseconds since the epoch.
+   */
+  refreshTokenExpiresAt: number;
+};
+
+/**
+ * A login session, shared by every refresh token rotated from one login.
+ */
+export type Session = {
+  /**
+   * Also the access token's `sid`.
+   */
+  id: string;
+  /**
+   * The absolute end of the session, in milliseconds since the epoch.
+   */
+  expiresAt: number;
+};
+
+export type CreateTokensProps = {
+  userId: string;
+  /**
+   * For RBAC, included in the access token's payload.
+   */
+  role: string;
+  /**
+   * The session to continue (on refresh). When omitted, a new session starts (on login).
+   */
+  session?: Session;
 };
 
 export type DecodedToken = {
@@ -30,11 +64,9 @@ export interface IAuthAdapter {
   getIsPasswordValid(saltAndHashedPassword: string, rawPassword: string): Promise<boolean>;
 
   /**
-   * Creates access and refresh tokens for the given user ID
-   * @param userId - User ID
-   * @param role - role for RBAC (included in JWT payload)
+   * Creates an access token, and a refresh token that is stored in the DB.
    */
-  createTokens(userId: string, role: string): Promise<Tokens>;
+  createTokens(props: CreateTokensProps): Promise<Tokens>;
 
   /**
    * Verifies an access token and returns the decoded payload

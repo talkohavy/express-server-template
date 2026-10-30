@@ -20,12 +20,11 @@ export type SingleCookie = {
    * The browser only sends the cookie to URLs under this path.
    */
   path: `/${string}`;
-  /**
-   * In milliseconds
-   */
-  maxAge: number;
 };
 
+/**
+ * A cookie's lifetime is not configured here: it always follows the lifetime of the token it holds.
+ */
 export type CookiesConfig = {
   accessCookie: SingleCookie;
   refreshCookie: SingleCookie;
@@ -33,10 +32,28 @@ export type CookiesConfig = {
 
 export type JwtConfig = {
   accessSecret: string;
-  refreshSecret: string;
-  accessExpireTime: string;
-  refreshExpireTime: string;
+  /**
+   * How long an access token is valid. Also the longest a revocation (logout, ban) can take to apply.
+   *
+   * In seconds.
+   */
+  accessTokenTtlSeconds: number;
   issuer: string;
+};
+
+export type RefreshTokenConfig = {
+  /**
+   * How long a refresh token stays valid without being used (the idle timeout). Every refresh starts a new one.
+   *
+   * In milliseconds.
+   */
+  ttlMs: number;
+  /**
+   * The absolute limit of a login session, however active the user is. After it, the user must log in again.
+   *
+   * In milliseconds.
+   */
+  sessionMaxAgeMs: number;
 };
 
 export type LoggerServiceSettings = LoggerSettings & {
@@ -76,10 +93,6 @@ export type ValidEnv = {
    * Signs and verifies access tokens. At least 32 characters.
    */
   JWT_ACCESS_SECRET: string;
-  /**
-   * Signs refresh tokens. At least 32 characters, and must differ from JWT_ACCESS_SECRET.
-   */
-  JWT_REFRESH_SECRET: string;
   PORT: number;
   /**
    * Used to identify the service in the logs.

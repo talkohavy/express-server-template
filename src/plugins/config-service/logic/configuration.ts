@@ -1,5 +1,10 @@
+import { API_PATHS } from '@src/common/constants';
 import { validateEnvVariables } from './utils/validateEnvVariables';
 import type { Config } from './constants';
+
+const ACCESS_TOKEN_TTL_SECONDS = 15 * 60; // 15 minutes
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export function configuration(): Config {
   const env = validateEnvVariables();
@@ -12,25 +17,25 @@ export function configuration(): Config {
     },
     jwt: {
       accessSecret: env.JWT_ACCESS_SECRET,
-      accessExpireTime: '1h',
-      refreshSecret: env.JWT_REFRESH_SECRET,
-      refreshExpireTime: '1d',
+      accessTokenTtlSeconds: ACCESS_TOKEN_TTL_SECONDS,
       issuer: 'luckylove',
+    },
+    refreshToken: {
+      ttlMs: REFRESH_TOKEN_TTL_MS,
+      sessionMaxAgeMs: SESSION_MAX_AGE_MS,
     },
     cookies: {
       accessCookie: {
         name: 'access_token',
         domain: env.DOMAIN,
         path: '/',
-        maxAge: 60 * 60 * 1000, // 1 hour
         isSecure: env.IS_SECURE,
       },
       refreshCookie: {
         name: 'refresh_token',
         domain: env.DOMAIN,
-        path: '/',
+        path: API_PATHS.auth, // <--- Sent only to the auth routes (refresh & logout), not on every request.
         isSecure: env.IS_SECURE,
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
       },
     },
     cors: {

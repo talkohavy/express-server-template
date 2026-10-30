@@ -1,7 +1,7 @@
 import { API_PATHS } from '@src/common/constants';
 import { ServiceNames } from '@src/plugins/config-service';
 import type { HttpClient } from '../../logic/http-client';
-import type { IAuthAdapter, Tokens, DecodedToken } from './auth.adapter.interface';
+import type { CreateTokensProps, IAuthAdapter, Tokens, DecodedToken } from './auth.adapter.interface';
 
 export class AuthHttpAdapter implements IAuthAdapter {
   constructor(private readonly httpClient: HttpClient) {}
@@ -26,11 +26,13 @@ export class AuthHttpAdapter implements IAuthAdapter {
     return response;
   }
 
-  async createTokens(userId: string, role: string): Promise<Tokens> {
+  async createTokens(props: CreateTokensProps): Promise<Tokens> {
+    const { userId, role, session } = props;
+
     const response = await this.httpClient.post<Tokens>({
       serviceName: ServiceNames.Auth,
       route: API_PATHS.createTokens,
-      body: { userId, role },
+      body: { userId, role, session },
     });
 
     return response;

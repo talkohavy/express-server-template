@@ -1,12 +1,12 @@
 import type { PasswordManagementService } from '../../../authentication/services/password-management';
-import type { TokenGenerationService } from '../../../authentication/services/token-generation';
+import type { SessionsService } from '../../../authentication/services/sessions';
 import type { TokenVerificationService } from '../../../authentication/services/token-verification';
-import type { IAuthAdapter, Tokens, DecodedToken } from './auth.adapter.interface';
+import type { CreateTokensProps, IAuthAdapter, Tokens, DecodedToken } from './auth.adapter.interface';
 
 export class AuthDirectAdapter implements IAuthAdapter {
   constructor(
     private readonly passwordManagementService: PasswordManagementService,
-    private readonly tokenGenerationService: TokenGenerationService,
+    private readonly sessionsService: SessionsService,
     private readonly tokenVerificationService: TokenVerificationService,
   ) {}
 
@@ -18,8 +18,8 @@ export class AuthDirectAdapter implements IAuthAdapter {
     return this.passwordManagementService.getIsPasswordValid(saltAndHashedPassword, rawPassword);
   }
 
-  async createTokens(userId: string, role: string): Promise<Tokens> {
-    return this.tokenGenerationService.createTokens({ userId, role });
+  async createTokens(props: CreateTokensProps): Promise<Tokens> {
+    return this.sessionsService.createTokens(props);
   }
 
   async verifyToken(token: string): Promise<DecodedToken> {

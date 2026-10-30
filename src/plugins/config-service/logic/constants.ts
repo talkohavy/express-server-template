@@ -6,6 +6,7 @@ import type {
   JwtConfig,
   LoggerServiceSettings,
   PostgresConfig,
+  RefreshTokenConfig,
 } from '../types';
 
 export const ConfigKeys = {
@@ -15,6 +16,7 @@ export const ConfigKeys = {
   Cookies: 'cookies',
   Cors: 'cors',
   Jwt: 'jwt',
+  RefreshToken: 'refreshToken',
   LogSettings: 'logSettings',
   Postgres: 'postgres',
   Redis: 'redis',
@@ -30,6 +32,7 @@ export type Config = {
   [ConfigKeys.Cookies]: CookiesConfig;
   [ConfigKeys.Cors]: CorsConfig;
   [ConfigKeys.Jwt]: JwtConfig;
+  [ConfigKeys.RefreshToken]: RefreshTokenConfig;
   [ConfigKeys.LogSettings]: LoggerServiceSettings;
   [ConfigKeys.Postgres]: PostgresConfig;
   [ConfigKeys.Redis]: Partial<RedisConfig>;

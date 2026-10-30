@@ -45,8 +45,8 @@ export class LoginController implements ControllerFactory {
           return void res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Invalid credentials' });
         }
 
-        // Step 3: Generate tokens (include role for RBAC)
-        const tokens = await this.authAdapter.createTokens(user.id.toString(), user.role);
+        // Step 3: Start a new session (include role for RBAC)
+        const tokens = await this.authAdapter.createTokens({ userId: user.id.toString(), role: user.role });
 
         // Step 4: Set cookies
         const cookiesConfig = this.app.configService.get<CookiesConfig>(ConfigKeys.Cookies);

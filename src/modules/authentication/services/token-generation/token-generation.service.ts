@@ -1,57 +1,42 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import type { JwtConfig } from '@src/plugins/config-service';
-import type { CreateAccessTokenProps, CreateRefreshTokenProps } from './types';
+import type { AccessTokenResult, CreateAccessTokenProps } from './types';
+
+const REFRESH_TOKEN_BYTES = 32;
 
 export class TokenGenerationService {
   constructor(private readonly jwtConfig: JwtConfig) {}
 
-  async createTokens(props: { userId: string; role: string }): Promise<{ accessToken: string; refreshToken: string }> {
-    const { userId, role } = props;
-
-    const sessionId = randomUUID();
-    const payload = { id: userId, role, sid: sessionId };
-    const accessToken = await this.createAccessToken(payload);
-    const refreshToken = await this.createRefreshToken(payload);
-
-    return { accessToken, refreshToken };
-  }
-
-  async createAccessToken(payload: CreateAccessTokenProps): Promise<string> {
-    const { accessSecret, accessExpireTime, issuer } = this.jwtConfig;
+  async createAccessToken(payload: CreateAccessTokenProps): Promise<AccessTokenResult> {
+    const { accessSecret, accessTokenTtlSeconds, issuer } = this.jwtConfig;
 
     const options: SignOptions = {
-      expiresIn: accessExpireTime as any,
+      expiresIn: accessTokenTtlSeconds,
       issuer, // <--- issuer should be defined either here or inside the payload as { iss: 'lkybe' }. YOU CANNOT DO BOTH! Having both will cause an error!
       audience: payload.id.toString(), // who this token is intended for (SPECIFICALLY!)
       header: { alg: 'HS256', typ: 'JWT' },
     };
 
-    return new Promise((resolve, reject) => {
+    const expiresAt = Date.now() + accessTokenTtlSeconds * 1000;
+
+    const accessToken = await new Promise<string>((resolve, reject) => {
       jwt.sign(payload, accessSecret, options, (error, token) => {
         if (error) return reject(new Error('something went wrong'));
 
         resolve(token!);
       });
     });
+
+    return { accessToken, expiresAt };
   }
 
-  async createRefreshToken(payload: CreateRefreshTokenProps): Promise<string> {
-    const { refreshSecret, refreshExpireTime, issuer } = this.jwtConfig;
+  /**
+   * An opaque random string: it is looked up in the DB on every use anyway, so it carries no claims.
+   */
+  createRefreshToken(): string {
+    const refreshToken = randomBytes(REFRESH_TOKEN_BYTES).toString('base64url');
 
-    const options: SignOptions = {
-      expiresIn: refreshExpireTime as any,
-      issuer,
-      audience: payload.id.toString(), // who this token is intended for (SPECIFICALLY!)
-      header: { alg: 'HS256', typ: 'JWT' },
-    };
-
-    return new Promise((resolve, reject) => {
-      jwt.sign(payload, refreshSecret, options, (error, token) => {
-        if (error) return reject(new Error('500 InternalServerError'));
-
-        resolve(token!);
-      });
-    });
+    return refreshToken;
   }
 }

@@ -3,19 +3,31 @@ import type { Response } from 'express';
 import type { CookiesConfig } from '@src/plugins/config-service';
 
 describe('setAuthCookies', () => {
+  const now = new Date('2026-01-01T00:00:00.000Z').getTime();
   const cookiesConfig: CookiesConfig = {
-    accessCookie: { name: 'access_token', domain: '.example.com', path: '/', maxAge: 1000, isSecure: true },
-    refreshCookie: { name: 'refresh_token', domain: '.example.com', path: '/api/auth', maxAge: 5000, isSecure: true },
+    accessCookie: { name: 'access_token', domain: '.example.com', path: '/', isSecure: true },
+    refreshCookie: { name: 'refresh_token', domain: '.example.com', path: '/api/auth', isSecure: true },
   };
-  const tokens = { accessToken: 'access-value', refreshToken: 'refresh-value' };
+  const tokens = {
+    accessToken: 'access-value',
+    accessTokenExpiresAt: now + 1000,
+    refreshToken: 'refresh-value',
+    refreshTokenExpiresAt: now + 5000,
+  };
 
   let res: { cookie: jest.Mock };
 
   beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(now);
+
     res = { cookie: jest.fn() };
   });
 
-  it('should set both cookies with their own path, domain and maxAge', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should set both cookies with their own path and domain, each living as long as its token', () => {
     const expectedResult = [
       [
         'access_token',

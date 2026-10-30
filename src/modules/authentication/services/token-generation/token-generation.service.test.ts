@@ -3,14 +3,15 @@ import { TokenGenerationService } from './token-generation.service';
 import type { JwtConfig } from '@src/plugins/config-service';
 
 describe('TokenGenerationService', () => {
+  const now = new Date('2026-01-01T00:00:00.000Z');
   let service: TokenGenerationService;
 
   beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(now.getTime());
+
     const jwtConfig: JwtConfig = {
       accessSecret: 'test-access-secret',
-      refreshSecret: 'test-refresh-secret',
-      accessExpireTime: '15m',
-      refreshExpireTime: '7d',
+      accessTokenTtlSeconds: 900,
       issuer: 'test-issuer',
     };
 
@@ -18,63 +19,55 @@ describe('TokenGenerationService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe('createTokens', () => {
-    it('should create access and refresh tokens', async () => {
-      const userId = 'test-user-123';
-
-      const result = await service.createTokens({ userId, role: 'user' });
-
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
-      expect(typeof result.accessToken).toBe('string');
-      expect(typeof result.refreshToken).toBe('string');
-      expect(result.accessToken.length).toBeGreaterThan(0);
-      expect(result.refreshToken.length).toBeGreaterThan(0);
-    });
-
-    it('should give both tokens the same new session id', async () => {
-      const result = await service.createTokens({ userId: 'test-user-123', role: 'user' });
-
-      const { sid: accessSessionId } = jwt.decode(result.accessToken) as { sid: string };
-      const { sid: refreshSessionId } = jwt.decode(result.refreshToken) as { sid: string };
-
-      expect(typeof accessSessionId).toBe('string');
-      expect(refreshSessionId).toBe(accessSessionId);
-    });
-
-    it('should start a different session on every call', async () => {
-      const firstTokens = await service.createTokens({ userId: 'test-user-123', role: 'user' });
-      const secondTokens = await service.createTokens({ userId: 'test-user-123', role: 'user' });
-
-      const { sid: firstSessionId } = jwt.decode(firstTokens.accessToken) as { sid: string };
-      const { sid: secondSessionId } = jwt.decode(secondTokens.accessToken) as { sid: string };
-
-      expect(secondSessionId).not.toBe(firstSessionId);
-    });
+    jest.restoreAllMocks();
   });
 
   describe('createAccessToken', () => {
-    it('should create a valid access token', async () => {
-      const payload = { id: 'user-123' };
+    it('should sign the payload with the configured issuer, audience and lifetime', async () => {
+      const expectedResult = {
+        id: 'user-123',
+        role: 'user',
+        sid: 'session-1',
+        iss: 'test-issuer',
+        aud: 'user-123',
+        iat: now.getTime() / 1000,
+        exp: now.getTime() / 1000 + 900,
+      };
 
-      const token = await service.createAccessToken(payload);
+      const { accessToken } = await service.createAccessToken({ id: 'user-123', role: 'user', sid: 'session-1' });
 
-      expect(typeof token).toBe('string');
-      expect(token.length).toBeGreaterThan(0);
+      const actualResult = jwt.verify(accessToken, 'test-access-secret');
+      expect(actualResult).toEqual(expectedResult);
+    });
+
+    it('should return when the access token expires, in milliseconds', async () => {
+      const expectedResult = now.getTime() + 900 * 1000;
+
+      const { expiresAt: actualResult } = await service.createAccessToken({ id: 'user-123' });
+
+      expect(actualResult).toBe(expectedResult);
     });
   });
 
   describe('createRefreshToken', () => {
-    it('should create a valid refresh token', async () => {
-      const payload = { id: 'user-123' };
+    it('should create a 32-byte base64url string', () => {
+      const refreshToken = service.createRefreshToken();
 
-      const token = await service.createRefreshToken(payload);
+      expect(refreshToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    });
 
-      expect(typeof token).toBe('string');
-      expect(token.length).toBeGreaterThan(0);
+    it('should not be a JWT', () => {
+      const refreshToken = service.createRefreshToken();
+
+      expect(jwt.decode(refreshToken)).toBeNull();
+    });
+
+    it('should create a different token on every call', () => {
+      const firstToken = service.createRefreshToken();
+
+      const secondToken = service.createRefreshToken();
+
+      expect(secondToken).not.toBe(firstToken);
     });
   });
 });

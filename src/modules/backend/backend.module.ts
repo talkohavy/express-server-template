@@ -92,7 +92,7 @@ export class BackendModule implements ModuleFactory {
   private initializeDirectAdapters() {
     // Direct adapters wrapping module services (monolith mode)
     const { usersCrudService, userUtilitiesService } = this.app.modules.UsersModule.services;
-    const { passwordManagementService, tokenGenerationService, tokenVerificationService } =
+    const { passwordManagementService, sessionsService, tokenVerificationService } =
       this.app.modules.AuthenticationModule.services;
     const { booksService } = this.app.modules.BooksModule.services;
     const { dragonsService } = this.app.modules.DragonsModule.services;
@@ -100,11 +100,7 @@ export class BackendModule implements ModuleFactory {
     const { fileUploadService } = this.app.modules.FileUploadModule.services;
 
     this.usersAdapter = new UsersDirectAdapter(usersCrudService, userUtilitiesService);
-    this.authAdapter = new AuthDirectAdapter(
-      passwordManagementService,
-      tokenGenerationService,
-      tokenVerificationService,
-    );
+    this.authAdapter = new AuthDirectAdapter(passwordManagementService, sessionsService, tokenVerificationService);
     this.booksAdapter = new BooksDirectAdapter(booksService);
     this.dragonsAdapter = new DragonsDirectAdapter(dragonsService);
     this.featureFlagsAdapter = new FeatureFlagsDirectAdapter(featureFlagsService);

@@ -3,12 +3,12 @@ import { joiBodyMiddleware } from '@src/middlewares/joi-body.middleware';
 import { createTokensSchema } from './dto/create-tokens.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
-import type { TokenGenerationService } from '../../services/token-generation/token-generation.service';
+import type { SessionsService } from '../../services/sessions';
 
 export class TokenGenerationController implements ControllerFactory {
   constructor(
     private readonly app: Application,
-    private readonly tokenGenerationService: TokenGenerationService,
+    private readonly sessionsService: SessionsService,
   ) {}
 
   registerRoutes() {
@@ -24,9 +24,9 @@ export class TokenGenerationController implements ControllerFactory {
 
         this.app.logger.info(`POST ${API_PATHS.createTokens} - create tokens`);
 
-        const { userId, role } = body;
+        const { userId, role, session } = body;
 
-        const tokens = await this.tokenGenerationService.createTokens({ userId, role });
+        const tokens = await this.sessionsService.createTokens({ userId, role, session });
 
         res.json(tokens);
       },

@@ -10,9 +10,7 @@ describe('TokenVerificationService', () => {
   beforeEach(() => {
     const jwtConfig = {
       accessSecret: mockAccessSecret,
-      refreshSecret: 'test-refresh-secret',
-      accessExpireTime: '15m',
-      refreshExpireTime: '7d',
+      accessTokenTtlSeconds: 900,
       issuer: mockIssuer,
     };
 

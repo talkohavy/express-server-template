@@ -7,11 +7,10 @@ export type CreateAccessTokenProps = {
   sid?: string;
 };
 
-export type CreateRefreshTokenProps = {
-  id: string;
-  role?: string;
+export type AccessTokenResult = {
+  accessToken: string;
   /**
-   * The login session the token belongs to.
+   * When the access token expires, in milliseconds since the epoch.
    */
-  sid?: string;
+  expiresAt: number;
 };
