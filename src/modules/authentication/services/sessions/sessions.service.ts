@@ -4,7 +4,7 @@ import { hashToken } from '../../logic/utils/hashToken';
 import type { RefreshTokenConfig } from '@src/plugins/config-service';
 import type { RefreshTokensRepository } from '../../repositories/refresh-tokens';
 import type { TokenGenerationService } from '../token-generation';
-import type { ConsumeRefreshTokenResult, CreateTokensProps, CreateTokensResult } from './types';
+import type { ConsumeRefreshTokenResult, CreateTokensProps, CreateTokensResult, RevokeSessionResult } from './types';
 
 export class SessionsService {
   constructor(
@@ -75,6 +75,29 @@ export class SessionsService {
         expiresAt: session_expires_at.getTime(),
       },
     };
+
+    return result;
+  }
+
+  /**
+   * Ends the session a refresh token belongs to (logout): none of the session's refresh tokens work anymore.
+   *
+   * Works with a used or expired token too, so logging out always ends the session.
+   *
+   * @returns the ended session, or `null` when the token is unknown.
+   */
+  async revokeSession(refreshToken: string): Promise<RevokeSessionResult | null> {
+    const tokenHash = hashToken(refreshToken);
+
+    const knownToken = await this.refreshTokensRepository.getByHash(tokenHash);
+
+    if (!knownToken) return null;
+
+    const { user_id, family_id } = knownToken;
+
+    await this.refreshTokensRepository.revokeFamily(family_id);
+
+    const result: RevokeSessionResult = { userId: user_id.toString(), sessionId: family_id };
 
     return result;
   }

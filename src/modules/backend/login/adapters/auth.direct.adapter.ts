@@ -5,6 +5,7 @@ import type {
   ConsumedRefreshToken,
   CreateTokensProps,
   IAuthAdapter,
+  RevokedSession,
   Tokens,
   DecodedToken,
 } from './auth.adapter.interface';
@@ -30,6 +31,10 @@ export class AuthDirectAdapter implements IAuthAdapter {
 
   async consumeRefreshToken(refreshToken: string): Promise<ConsumedRefreshToken> {
     return this.sessionsService.consumeRefreshToken(refreshToken);
+  }
+
+  async revokeSession(refreshToken: string): Promise<RevokedSession | null> {
+    return this.sessionsService.revokeSession(refreshToken);
   }
 
   async verifyToken(token: string): Promise<DecodedToken> {

@@ -5,6 +5,7 @@ import type {
   ConsumedRefreshToken,
   CreateTokensProps,
   IAuthAdapter,
+  RevokedSession,
   Tokens,
   DecodedToken,
 } from './auth.adapter.interface';
@@ -48,6 +49,16 @@ export class AuthHttpAdapter implements IAuthAdapter {
     const response = await this.httpClient.post<ConsumedRefreshToken>({
       serviceName: ServiceNames.Auth,
       route: API_PATHS.consumeRefreshToken,
+      body: { refreshToken },
+    });
+
+    return response;
+  }
+
+  async revokeSession(refreshToken: string): Promise<RevokedSession | null> {
+    const response = await this.httpClient.post<RevokedSession | null>({
+      serviceName: ServiceNames.Auth,
+      route: API_PATHS.revokeSession,
       body: { refreshToken },
     });
 

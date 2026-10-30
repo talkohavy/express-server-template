@@ -13,6 +13,16 @@ describe('SessionsService', () => {
   const DAY_MS = 24 * 60 * 60 * 1000;
   const now = new Date('2026-01-01T00:00:00.000Z').getTime();
   const refreshTokenConfig = { ttlMs: 7 * DAY_MS, sessionMaxAgeMs: 30 * DAY_MS };
+  const storedToken = {
+    id: 'row-id',
+    user_id: 7,
+    family_id: 'session-id',
+    token_hash: hashToken('raw-refresh-token'),
+    expires_at: new Date(now + 7 * DAY_MS),
+    session_expires_at: new Date(now + 20 * DAY_MS),
+    revoked_at: null,
+    created_at: new Date(now),
+  };
 
   let refreshTokensRepository: {
     create: jest.Mock;
@@ -119,17 +129,6 @@ describe('SessionsService', () => {
   });
 
   describe('consumeRefreshToken', () => {
-    const storedToken = {
-      id: 'row-id',
-      user_id: 7,
-      family_id: 'session-id',
-      token_hash: hashToken('raw-refresh-token'),
-      expires_at: new Date(now + 7 * DAY_MS),
-      session_expires_at: new Date(now + 20 * DAY_MS),
-      revoked_at: null,
-      created_at: new Date(now),
-    };
-
     async function consumeIgnoringRejection(refreshToken: string): Promise<void> {
       try {
         await service.consumeRefreshToken(refreshToken);
@@ -204,6 +203,59 @@ describe('SessionsService', () => {
 
       it('should not revoke anything', async () => {
         await consumeIgnoringRejection('unknown-token');
+
+        expect(refreshTokensRepository.revokeFamily).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('revokeSession', () => {
+    describe('with a known token', () => {
+      beforeEach(() => {
+        refreshTokensRepository.getByHash.mockResolvedValue(storedToken);
+      });
+
+      it('should look the token up by its hash, never by the raw token', async () => {
+        const expectedResult = hashToken('raw-refresh-token');
+
+        await service.revokeSession('raw-refresh-token');
+
+        const actualResult = refreshTokensRepository.getByHash.mock.calls[0][0];
+        expect(actualResult).toBe(expectedResult);
+      });
+
+      it('should revoke the whole session', async () => {
+        await service.revokeSession('raw-refresh-token');
+
+        expect(refreshTokensRepository.revokeFamily).toHaveBeenCalledWith('session-id');
+      });
+
+      it('should return the user and the ended session', async () => {
+        const expectedResult = { userId: '7', sessionId: 'session-id' };
+
+        const actualResult = await service.revokeSession('raw-refresh-token');
+
+        expect(actualResult).toEqual(expectedResult);
+      });
+
+      it('should still revoke the session when the token was already used', async () => {
+        refreshTokensRepository.getByHash.mockResolvedValue({ ...storedToken, revoked_at: new Date(now - 1000) });
+
+        await service.revokeSession('raw-refresh-token');
+
+        expect(refreshTokensRepository.revokeFamily).toHaveBeenCalledWith('session-id');
+      });
+    });
+
+    describe('with an unknown token', () => {
+      it('should return null', async () => {
+        const actualResult = await service.revokeSession('unknown-token');
+
+        expect(actualResult).toBeNull();
+      });
+
+      it('should not revoke anything', async () => {
+        await service.revokeSession('unknown-token');
 
         expect(refreshTokensRepository.revokeFamily).not.toHaveBeenCalled();
       });

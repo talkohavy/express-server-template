@@ -45,6 +45,11 @@ export type ConsumedRefreshToken = {
   session: Session;
 };
 
+export type RevokedSession = {
+  userId: string;
+  sessionId: string;
+};
+
 export type DecodedToken = {
   id: string;
   role: string;
@@ -82,6 +87,13 @@ export interface IAuthAdapter {
    * @throws {UnauthorizedError} when the token is unknown, expired, or already used.
    */
   consumeRefreshToken(refreshToken: string): Promise<ConsumedRefreshToken>;
+
+  /**
+   * Ends the session a refresh token belongs to (logout), even if the token was already used or expired.
+   *
+   * @returns the ended session, or `null` when the token is unknown.
+   */
+  revokeSession(refreshToken: string): Promise<RevokedSession | null>;
 
   /**
    * Verifies an access token and returns the decoded payload

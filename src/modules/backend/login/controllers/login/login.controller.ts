@@ -9,7 +9,7 @@ import { loginSchema } from './dto/login.dto';
 import type { Application, Request, Response } from 'express';
 import type { ControllerFactory } from '@src/lib/lucky-server';
 import type { IUsersAdapter } from '../../../users/adapters/users.adapter.interface';
-import type { IAuthAdapter } from '../../adapters/auth.adapter.interface';
+import type { IAuthAdapter, RevokedSession } from '../../adapters/auth.adapter.interface';
 
 export class LoginController implements ControllerFactory {
   constructor(
@@ -117,33 +117,38 @@ export class LoginController implements ControllerFactory {
     this.app.post(API_PATHS.authLogout, async (req: Request, res: Response) => {
       this.app.logger.info(`POST ${API_PATHS.authLogout} - user logout`);
 
+      // Step 1: Get the cookies config
       const cookiesConfig = this.app.configService.get<CookiesConfig>(ConfigKeys.Cookies);
 
-      const accessToken: string | undefined = req.cookies?.[cookiesConfig.accessCookie.name];
+      // Step 2: Get the refresh token from the cookies
+      const refreshToken: string | undefined = req.cookies?.[cookiesConfig.refreshCookie.name];
 
-      /**
-       * Closes the SSE connections of this login session only (the token's `sid`), on every node,
-       * so they stop receiving events after logout. That covers every tab of this browser, since they share the cookie.
-       * The user's other sessions (other devices or browsers) are untouched.
-       */
-      await this.closeSessionSseConnections(accessToken);
-
+      // Step 3: clear the cookies before revoking, so the browser drops the cookies even if revoking fails.
       clearAuthCookies({ res, cookiesConfig });
+
+      // Step 4: revoke the session
+      if (refreshToken) {
+        const revokedSession = await this.authAdapter.revokeSession(refreshToken);
+
+        /**
+         * Step 5: closes the SSE connections of this login session only, on every node,
+         * so they stop receiving events after logout. That covers every tab of this browser, since they share the cookie.
+         * The user's other sessions (other devices or browsers) are untouched.
+         */
+        if (revokedSession) await this.closeSessionSseConnections(revokedSession);
+      }
 
       res.json({});
     });
   }
 
   /**
-   * Best effort: logout must succeed even if the token is already invalid or Redis is down.
-   * (An expired token needs nothing here: its streams close on their own once it expires.)
+   * Best effort: the session is already revoked, so logout must succeed even if Redis is down.
    */
-  private async closeSessionSseConnections(accessToken: string | undefined): Promise<void> {
-    if (!accessToken) return;
+  private async closeSessionSseConnections(props: RevokedSession): Promise<void> {
+    const { userId, sessionId } = props;
 
     try {
-      const { id: userId, sid: sessionId } = await this.authAdapter.verifyToken(accessToken);
-
       await this.app.sseTopics.closeSessionConnections({ userId, sessionId });
     } catch (error) {
       this.app.logger.warn('Failed to close the SSE connections of a logged-out user', { error });

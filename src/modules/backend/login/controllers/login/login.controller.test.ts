@@ -25,8 +25,9 @@ describe('LoginController', () => {
   };
 
   let app: Application;
-  let authAdapter: { consumeRefreshToken: jest.Mock; createTokens: jest.Mock };
+  let authAdapter: { consumeRefreshToken: jest.Mock; createTokens: jest.Mock; revokeSession: jest.Mock };
   let usersAdapter: { getUserById: jest.Mock };
+  let sseTopics: { closeSessionConnections: jest.Mock };
 
   beforeEach(() => {
     jest.spyOn(Date, 'now').mockReturnValue(now);
@@ -42,8 +43,11 @@ describe('LoginController', () => {
     authAdapter = {
       consumeRefreshToken: jest.fn().mockResolvedValue({ userId: '7', session }),
       createTokens: jest.fn().mockResolvedValue(tokens),
+      revokeSession: jest.fn().mockResolvedValue({ userId: '7', sessionId: 'session-id' }),
     };
     usersAdapter = { getUserById: jest.fn().mockResolvedValue({ id: 7, role: 'admin' }) };
+    sseTopics = { closeSessionConnections: jest.fn() };
+    app.sseTopics = sseTopics as any;
 
     const controller = new LoginController(
       app,
@@ -58,15 +62,20 @@ describe('LoginController', () => {
     jest.restoreAllMocks();
   });
 
+  function getSetCookieHeaders(response: request.Response): Array<string> {
+    const setCookieHeaders = response.headers['set-cookie'] as unknown as Array<string> | undefined;
+
+    return setCookieHeaders ?? [];
+  }
+
+  const clearedCookies = [
+    expect.stringMatching(/^access_token=;.*Expires=Thu, 01 Jan 1970/),
+    expect.stringMatching(/^refresh_token=;.*Expires=Thu, 01 Jan 1970/),
+  ];
+
   describe('POST /api/auth/refresh', () => {
     function postRefresh() {
       return request(app).post(API_PATHS.authRefresh).set('Cookie', ['refresh_token=old-refresh-token']);
-    }
-
-    function getSetCookieHeaders(response: request.Response): Array<string> {
-      const setCookieHeaders = response.headers['set-cookie'] as unknown as Array<string> | undefined;
-
-      return setCookieHeaders ?? [];
     }
 
     describe('with a valid refresh token', () => {
@@ -130,10 +139,7 @@ describe('LoginController', () => {
       });
 
       it('should clear both cookies', async () => {
-        const expectedResult = [
-          expect.stringMatching(/^access_token=;.*Expires=Thu, 01 Jan 1970/),
-          expect.stringMatching(/^refresh_token=;.*Expires=Thu, 01 Jan 1970/),
-        ];
+        const expectedResult = clearedCookies;
 
         const response = await postRefresh();
 
@@ -164,6 +170,99 @@ describe('LoginController', () => {
 
         const actualResult = getSetCookieHeaders(response);
         expect(actualResult).toEqual([]);
+      });
+    });
+  });
+
+  describe('POST /api/auth/logout', () => {
+    function postLogout() {
+      return request(app).post(API_PATHS.authLogout).set('Cookie', ['refresh_token=current-refresh-token']);
+    }
+
+    describe('with a refresh cookie', () => {
+      it('should respond with 200', async () => {
+        const response = await postLogout();
+
+        expect(response.status).toBe(StatusCodes.OK);
+      });
+
+      it('should revoke the session of the refresh token', async () => {
+        await postLogout();
+
+        expect(authAdapter.revokeSession).toHaveBeenCalledWith('current-refresh-token');
+      });
+
+      it('should close the SSE connections of the revoked session', async () => {
+        await postLogout();
+
+        expect(sseTopics.closeSessionConnections).toHaveBeenCalledWith({ userId: '7', sessionId: 'session-id' });
+      });
+
+      it('should clear both cookies', async () => {
+        const expectedResult = clearedCookies;
+
+        const response = await postLogout();
+
+        const actualResult = getSetCookieHeaders(response);
+        expect(actualResult).toEqual(expectedResult);
+      });
+    });
+
+    describe('without a refresh cookie', () => {
+      it('should clear both cookies', async () => {
+        const expectedResult = clearedCookies;
+
+        const response = await request(app).post(API_PATHS.authLogout);
+
+        const actualResult = getSetCookieHeaders(response);
+        expect(actualResult).toEqual(expectedResult);
+      });
+
+      it('should not revoke anything', async () => {
+        await request(app).post(API_PATHS.authLogout);
+
+        expect(authAdapter.revokeSession).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('when the refresh token is unknown', () => {
+      it('should not close any SSE connections', async () => {
+        authAdapter.revokeSession.mockResolvedValue(null);
+
+        await postLogout();
+
+        expect(sseTopics.closeSessionConnections).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('when closing the SSE connections fails', () => {
+      it('should still respond with 200', async () => {
+        sseTopics.closeSessionConnections.mockRejectedValue(new Error('Redis is down'));
+
+        const response = await postLogout();
+
+        expect(response.status).toBe(StatusCodes.OK);
+      });
+    });
+
+    describe('when revoking the session fails', () => {
+      beforeEach(() => {
+        authAdapter.revokeSession.mockRejectedValue(new InternalServerError());
+      });
+
+      it('should respond with 500', async () => {
+        const response = await postLogout();
+
+        expect(response.status).toBe(StatusCodes.INTERNAL_ERROR);
+      });
+
+      it('should still clear both cookies', async () => {
+        const expectedResult = clearedCookies;
+
+        const response = await postLogout();
+
+        const actualResult = getSetCookieHeaders(response);
+        expect(actualResult).toEqual(expectedResult);
       });
     });
   });

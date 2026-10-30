@@ -8,6 +8,7 @@ export const API_PATHS = {
   authRefresh: '/api/auth/refresh',
   createTokens: '/api/auth/tokens',
   consumeRefreshToken: '/api/auth/consume-refresh-token',
+  revokeSession: '/api/auth/revoke-session',
   verifyToken: '/api/auth/verify-token',
   isPasswordValid: '/api/auth/is-password-valid',
   // users

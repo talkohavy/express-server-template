@@ -34,6 +34,11 @@ export type CreateTokensResult = {
   refreshTokenExpiresAt: number;
 };
 
+export type RevokeSessionResult = {
+  userId: string;
+  sessionId: string;
+};
+
 export type ConsumeRefreshTokenResult = {
   userId: string;
   /**
