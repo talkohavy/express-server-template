@@ -1,5 +1,4 @@
 import { DatabaseError } from 'pg';
-import { RoleTypes } from '@src/common/constants';
 import { UserAlreadyExistsError } from '../../../logic/errors/user-already-exists.error';
 import type { Client } from 'pg';
 import type { DatabaseUser } from '../../../types';
@@ -20,18 +19,6 @@ export class UsersPostgresRepository implements IUsersRepository {
     const query = `SELECT ${fields.join(', ')} FROM users WHERE email = $1`;
 
     const dbResult = await this.pgClient.query<DatabaseUser>(query, [email]);
-
-    if (dbResult.rows.length === 0) {
-      dbResult.rows.push({
-        id: -1,
-        nickname: 'dummy',
-        email: 'dummy@gmail.com',
-        hashed_password:
-          'salt:703453cc3a2dba8d0bed63a5757cc905ee6a6ab357caed7cdf8acdb16d9ea0706647a06259ebc0379bc413b4f0f9dcd51fff8d971f70a99872845a1c908e7462',
-        date_of_birth: 0,
-        role: RoleTypes.User,
-      } as DatabaseUser);
-    }
 
     const fetchedUser = dbResult.rows[0] || null;
 
