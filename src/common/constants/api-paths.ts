@@ -37,6 +37,12 @@ export const API_PATHS = {
   isFeatureFlagEnabled: '/api/feature-flags/:key/enabled',
   // server-sent events
   sse: '/api/sse',
+  // server-sent events demo
+  sseDemoTopics: '/api/sse-demo/topics',
+  sseDemoJoinTopic: '/api/sse-demo/topics/join',
+  sseDemoLeaveTopic: '/api/sse-demo/topics/leave',
+  sseDemoSendToTopic: '/api/sse-demo/topics/send',
+  sseDemoSendToUser: '/api/sse-demo/users/send',
   // backend
   backendMiddleware: '/api/backend',
   internalWsState: '/api/internal/ws-state',

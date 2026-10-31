@@ -18,6 +18,7 @@ import {
 import { HttpClient } from './logic/http-client';
 import { AuthDirectAdapter, AuthHttpAdapter, LoginController, type IAuthAdapter } from './login';
 import { BooksServiceClient } from './proto/generated/backend/books/v1/books';
+import { SseDemoController } from './sse-demo';
 import {
   UsersDirectAdapter,
   UsersHttpAdapter,
@@ -78,6 +79,7 @@ export class BackendModule implements ModuleFactory {
     const featureFlagsEvaluateController = new FeatureFlagsEvaluateController(this.app, this.featureFlagsAdapter);
     const featureFlagsController = new FeatureFlagsController(this.app, this.featureFlagsAdapter);
     const fileUploadController = new FileUploadController(this.app, this.fileUploadAdapter);
+    const sseDemoController = new SseDemoController(this.app, this.authAdapter);
 
     loginController.registerRoutes();
     usersCrudController.registerRoutes();
@@ -87,6 +89,7 @@ export class BackendModule implements ModuleFactory {
     featureFlagsEvaluateController.registerRoutes();
     featureFlagsController.registerRoutes();
     fileUploadController.registerRoutes();
+    sseDemoController.registerRoutes();
   }
 
   private initializeDirectAdapters() {
