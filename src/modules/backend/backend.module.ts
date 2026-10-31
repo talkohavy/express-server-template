@@ -82,8 +82,8 @@ export class BackendModule implements ModuleFactory {
     const sseDemoController = new SseDemoController(this.app, this.authAdapter);
 
     loginController.registerRoutes();
-    usersCrudController.registerRoutes();
     userUtilitiesController.registerRoutes();
+    usersCrudController.registerRoutes();
     booksController.registerRoutes();
     dragonsController.registerRoutes();
     featureFlagsEvaluateController.registerRoutes();
