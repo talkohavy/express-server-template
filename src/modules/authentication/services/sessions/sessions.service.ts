@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { hashValue } from '@src/common/utils/hash-value';
 import { UnauthorizedError } from '@src/core/errors';
-import { hashToken } from '../../logic/utils/hashToken';
 import type { RefreshTokenConfig } from '@src/plugins/config-service';
 import type { RefreshTokensRepository } from '../../repositories/refresh-tokens';
 import type { TokenGenerationService } from '../token-generation';
@@ -28,7 +28,7 @@ export class SessionsService {
     const refreshTokenExpiresAt = Math.min(now + ttlMs, sessionExpiresAt);
 
     const refreshToken = this.tokenGenerationService.createRefreshToken();
-    const tokenHash = hashToken(refreshToken);
+    const tokenHash = hashValue(refreshToken);
 
     await this.refreshTokensRepository.create({
       userId: Number(userId),
@@ -56,7 +56,7 @@ export class SessionsService {
    * @throws {UnauthorizedError} when the token is unknown, expired, or already used.
    */
   async consumeRefreshToken(refreshToken: string): Promise<ConsumeRefreshTokenResult> {
-    const tokenHash = hashToken(refreshToken);
+    const tokenHash = hashValue(refreshToken);
 
     const consumedToken = await this.refreshTokensRepository.consumeByHash(tokenHash);
 
@@ -87,7 +87,7 @@ export class SessionsService {
    * @returns the ended session, or `null` when the token is unknown.
    */
   async revokeSession(refreshToken: string): Promise<RevokeSessionResult | null> {
-    const tokenHash = hashToken(refreshToken);
+    const tokenHash = hashValue(refreshToken);
 
     const knownToken = await this.refreshTokensRepository.getByHash(tokenHash);
 

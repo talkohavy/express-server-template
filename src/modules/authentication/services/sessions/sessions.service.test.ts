@@ -1,5 +1,5 @@
+import { hashValue } from '@src/common/utils/hash-value';
 import { UnauthorizedError } from '@src/core/errors';
-import { hashToken } from '../../logic/utils/hashToken';
 import { SessionsService } from './sessions.service';
 import type { RefreshTokensRepository } from '../../repositories/refresh-tokens';
 import type { TokenGenerationService } from '../token-generation';
@@ -17,7 +17,7 @@ describe('SessionsService', () => {
     id: 'row-id',
     user_id: 7,
     family_id: 'session-id',
-    token_hash: hashToken('raw-refresh-token'),
+    token_hash: hashValue('raw-refresh-token'),
     expires_at: new Date(now + 7 * DAY_MS),
     session_expires_at: new Date(now + 20 * DAY_MS),
     revoked_at: null,
@@ -64,7 +64,7 @@ describe('SessionsService', () => {
         const expectedResult = {
           userId: 7,
           familyId: 'new-session-id',
-          tokenHash: hashToken('raw-refresh-token'),
+          tokenHash: hashValue('raw-refresh-token'),
           expiresAt: new Date(now + 7 * DAY_MS),
           sessionExpiresAt: new Date(now + 30 * DAY_MS),
         };
@@ -139,7 +139,7 @@ describe('SessionsService', () => {
 
     describe('with a live token', () => {
       it('should consume the token by its hash, never by the raw token', async () => {
-        const expectedResult = hashToken('raw-refresh-token');
+        const expectedResult = hashValue('raw-refresh-token');
         refreshTokensRepository.consumeByHash.mockResolvedValue(storedToken);
 
         await service.consumeRefreshToken('raw-refresh-token');
@@ -216,7 +216,7 @@ describe('SessionsService', () => {
       });
 
       it('should look the token up by its hash, never by the raw token', async () => {
-        const expectedResult = hashToken('raw-refresh-token');
+        const expectedResult = hashValue('raw-refresh-token');
 
         await service.revokeSession('raw-refresh-token');
 
