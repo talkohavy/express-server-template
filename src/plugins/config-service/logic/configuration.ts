@@ -16,7 +16,8 @@ export function configuration(): Config {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     },
     jwt: {
-      accessSecret: env.JWT_ACCESS_SECRET,
+      accessPrivateKey: env.JWT_ACCESS_PRIVATE_KEY,
+      accessPublicKey: env.JWT_ACCESS_PUBLIC_KEY,
       accessTokenTtlSeconds: ACCESS_TOKEN_TTL_SECONDS,
       issuer: 'luckylove',
     },

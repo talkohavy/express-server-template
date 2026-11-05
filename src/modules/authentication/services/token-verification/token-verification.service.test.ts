@@ -1,15 +1,27 @@
+import { generateKeyPairSync } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { UnauthorizedError } from '@src/core/errors';
 import { TokenVerificationService } from './token-verification.service';
 
+function generateEs256KeyPair() {
+  const keyPair = generateKeyPairSync('ec', {
+    namedCurve: 'prime256v1',
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  });
+
+  return keyPair;
+}
+
 describe('TokenVerificationService', () => {
   let service: TokenVerificationService;
-  const mockAccessSecret = 'test-access-secret';
+  const { privateKey, publicKey } = generateEs256KeyPair();
   const mockIssuer = 'test-issuer';
 
   beforeEach(() => {
     const jwtConfig = {
-      accessSecret: mockAccessSecret,
+      accessPrivateKey: privateKey,
+      accessPublicKey: publicKey,
       accessTokenTtlSeconds: 900,
       issuer: mockIssuer,
     };
@@ -24,7 +36,8 @@ describe('TokenVerificationService', () => {
   describe('verifyToken', () => {
     it('should verify and decode a valid token', async () => {
       const payload = { id: 'user-123', iat: Math.floor(Date.now() / 1000) };
-      const token = jwt.sign(payload, mockAccessSecret, {
+      const token = jwt.sign(payload, privateKey, {
+        algorithm: 'ES256',
         issuer: mockIssuer,
         expiresIn: '15m',
       });
@@ -47,7 +60,8 @@ describe('TokenVerificationService', () => {
 
     it('should reject a token with wrong issuer with an UnauthorizedError', async () => {
       const payload = { id: 'user-123' };
-      const token = jwt.sign(payload, mockAccessSecret, {
+      const token = jwt.sign(payload, privateKey, {
+        algorithm: 'ES256',
         issuer: 'wrong-issuer',
         expiresIn: '15m',
       });
@@ -55,9 +69,22 @@ describe('TokenVerificationService', () => {
       await expect(service.verifyToken(token)).rejects.toThrow(UnauthorizedError);
     });
 
-    it('should reject a token signed with a different secret with an UnauthorizedError', async () => {
+    it('should reject a token signed with a different private key with an UnauthorizedError', async () => {
+      const { privateKey: otherPrivateKey } = generateEs256KeyPair();
       const payload = { id: 'user-123' };
-      const token = jwt.sign(payload, 'some-other-secret', {
+      const token = jwt.sign(payload, otherPrivateKey, {
+        algorithm: 'ES256',
+        issuer: mockIssuer,
+        expiresIn: '15m',
+      });
+
+      await expect(service.verifyToken(token)).rejects.toThrow(UnauthorizedError);
+    });
+
+    it('should reject an HS256 token that uses the public key as its secret with an UnauthorizedError', async () => {
+      const payload = { id: 'user-123' };
+      const token = jwt.sign(payload, Buffer.from(publicKey), {
+        algorithm: 'HS256',
         issuer: mockIssuer,
         expiresIn: '15m',
       });
@@ -67,7 +94,7 @@ describe('TokenVerificationService', () => {
 
     it('should reject an expired token with an UnauthorizedError', async () => {
       const payload = { id: 'user-123', exp: Math.floor(Date.now() / 1000) - 60 };
-      const token = jwt.sign(payload, mockAccessSecret, { issuer: mockIssuer });
+      const token = jwt.sign(payload, privateKey, { algorithm: 'ES256', issuer: mockIssuer });
 
       await expect(service.verifyToken(token)).rejects.toThrow(UnauthorizedError);
     });

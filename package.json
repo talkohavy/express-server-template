@@ -21,6 +21,7 @@
     "test": "jest",
     "test:cov": "jest --coverage",
     "check": "npm run lint && npm run lint:biome && npm run format && npm run tsc && npm run test",
+    "generate:jwt-keys": "tsx toolbox/generate-jwt-keys.ts",
     "benchmark": "node --env-file=.env --import tsx benchmark/benchmark.ts",
     "benchmark:quick": "concurrently -k -s first \"node --env-file=.env --import tsx src/initServer.ts\" \"npx autocannon -c 100 -d 5 -p 10 http://localhost:8000/api/health-check\"",
     "k6:smoke": "k6 run toolbox/benchmark/k6/smoke-test.js",

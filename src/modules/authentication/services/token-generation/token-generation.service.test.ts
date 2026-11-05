@@ -1,16 +1,23 @@
+import { generateKeyPairSync } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { TokenGenerationService } from './token-generation.service';
 import type { JwtConfig } from '@src/plugins/config-service';
 
 describe('TokenGenerationService', () => {
   const now = new Date('2026-01-01T00:00:00.000Z');
+  const { privateKey, publicKey } = generateKeyPairSync('ec', {
+    namedCurve: 'prime256v1',
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  });
   let service: TokenGenerationService;
 
   beforeEach(() => {
     jest.spyOn(Date, 'now').mockReturnValue(now.getTime());
 
     const jwtConfig: JwtConfig = {
-      accessSecret: 'test-access-secret',
+      accessPrivateKey: privateKey,
+      accessPublicKey: publicKey,
       accessTokenTtlSeconds: 900,
       issuer: 'test-issuer',
     };
@@ -36,7 +43,16 @@ describe('TokenGenerationService', () => {
 
       const { accessToken } = await service.createAccessToken({ id: 'user-123', role: 'user', sid: 'session-1' });
 
-      const actualResult = jwt.verify(accessToken, 'test-access-secret');
+      const actualResult = jwt.verify(accessToken, publicKey, { algorithms: ['ES256'] });
+      expect(actualResult).toEqual(expectedResult);
+    });
+
+    it('should sign with ES256', async () => {
+      const expectedResult = { alg: 'ES256', typ: 'JWT' };
+
+      const { accessToken } = await service.createAccessToken({ id: 'user-123' });
+
+      const actualResult = jwt.decode(accessToken, { complete: true })?.header;
       expect(actualResult).toEqual(expectedResult);
     });
 

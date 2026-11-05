@@ -1,6 +1,9 @@
 import Joi from 'joi';
 import { Environment } from '@src/common/constants';
 import { LogLevel } from '@src/lib/logger';
+import { validateJwtKeyPair } from './utils/validate-jwt-key-pair';
+import { validateJwtPrivateKey } from './utils/validate-jwt-private-key';
+import { validateJwtPublicKey } from './utils/validate-jwt-public-key';
 import type { ValidEnv } from '../types';
 
 const logLevelValues = Object.values(LogLevel);
@@ -10,7 +13,8 @@ export const envSchema = Joi.object<ValidEnv>({
   POSTGRES_CONNECTION_STRING: Joi.string().required(),
   REDIS_CONNECTION_STRING: Joi.string().required(),
   MICRO_SERVICES_PROTOCOL: Joi.string().valid('direct', 'http', 'grpc').required(),
-  JWT_ACCESS_SECRET: Joi.string().min(32).required(),
+  JWT_ACCESS_PRIVATE_KEY: Joi.string().required().custom(validateJwtPrivateKey),
+  JWT_ACCESS_PUBLIC_KEY: Joi.string().required().custom(validateJwtPublicKey),
   // Optional environment variables
   PORT: Joi.number().port().default(8000).messages({
     'number.base': '"PORT" must be a valid number',
@@ -33,4 +37,6 @@ export const envSchema = Joi.object<ValidEnv>({
   IS_STRICT_CORS: Joi.boolean().default(true),
   EXPOSE_INTERNAL_ERRORS: Joi.boolean().default(false),
   WEBSOCKET_MODULE: Joi.string().valid('socket.io', 'ws').optional(),
-}).unknown(true);
+})
+  .custom(validateJwtKeyPair)
+  .unknown(true);

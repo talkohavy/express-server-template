@@ -31,7 +31,14 @@ export type CookiesConfig = {
 };
 
 export type JwtConfig = {
-  accessSecret: string;
+  /**
+   * PEM. Signs access tokens.
+   */
+  accessPrivateKey: string;
+  /**
+   * PEM. Verifies access tokens.
+   */
+  accessPublicKey: string;
   /**
    * How long an access token is valid. Also the longest a revocation (logout, ban) can take to apply.
    *
@@ -90,9 +97,17 @@ export type ValidEnv = {
   REDIS_CONNECTION_STRING: string;
   MICRO_SERVICES_PROTOCOL: 'direct' | 'http' | 'grpc';
   /**
-   * Signs and verifies access tokens. At least 32 characters.
+   * Signs access tokens. An ES256 (P-256) private key.
+   *
+   * Set in the env as a base64-encoded PEM (or a raw PEM). Holds the decoded PEM after validation.
    */
-  JWT_ACCESS_SECRET: string;
+  JWT_ACCESS_PRIVATE_KEY: string;
+  /**
+   * Verifies access tokens. The public half of `JWT_ACCESS_PRIVATE_KEY`.
+   *
+   * Set in the env as a base64-encoded PEM (or a raw PEM). Holds the decoded PEM after validation.
+   */
+  JWT_ACCESS_PUBLIC_KEY: string;
   PORT: number;
   /**
    * Used to identify the service in the logs.
