@@ -2,7 +2,11 @@ import type { Client } from 'pg';
 
 export const PRODUCTS_TABLE_NAME = 'products';
 
-export const productsTableSchema = `
+export async function createProductsTable(pgClient: Client): Promise<void> {
+  await pgClient.query(productsTableSchema);
+}
+
+const productsTableSchema = `
   CREATE TABLE IF NOT EXISTS public.${PRODUCTS_TABLE_NAME}
   (
     id SERIAL PRIMARY KEY,
@@ -12,7 +16,3 @@ export const productsTableSchema = `
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
   );
 `;
-
-export async function createProductsTable(pgClient: Client): Promise<void> {
-  await pgClient.query(productsTableSchema);
-}

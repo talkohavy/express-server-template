@@ -1,6 +1,10 @@
 import type { Client } from 'pg';
 
-export const REFRESH_TOKENS_TABLE_NAME = 'refresh_tokens';
+const REFRESH_TOKENS_TABLE_NAME = 'refresh_tokens';
+
+export async function createRefreshTokensTable(pgClient: Client): Promise<void> {
+  await pgClient.query(refreshTokensTableSchema);
+}
 
 /**
  * - `family_id` groups every token rotated from one login. It is also the access token's `sid`.
@@ -8,7 +12,7 @@ export const REFRESH_TOKENS_TABLE_NAME = 'refresh_tokens';
  * - `expires_at` is this token's own (idle) lifetime; `session_expires_at` is the absolute limit of the whole family.
  * - A revoked row is kept until it expires: presenting it again is how a stolen token gets detected.
  */
-export const refreshTokensTableSchema = `
+const refreshTokensTableSchema = `
   CREATE TABLE IF NOT EXISTS public.${REFRESH_TOKENS_TABLE_NAME}
   (
     id UUID PRIMARY KEY,
@@ -23,7 +27,3 @@ export const refreshTokensTableSchema = `
 
   CREATE INDEX IF NOT EXISTS ${REFRESH_TOKENS_TABLE_NAME}_family_id_idx ON public.${REFRESH_TOKENS_TABLE_NAME} (family_id);
 `;
-
-export async function createRefreshTokensTable(pgClient: Client): Promise<void> {
-  await pgClient.query(refreshTokensTableSchema);
-}

@@ -4,7 +4,11 @@ export const ORDERS_TABLE_NAME = 'orders';
 
 export const ORDER_STATUSES = ['pending', 'paid', 'shipped', 'cancelled'] as const;
 
-export const ordersTableSchema = `
+export async function createOrdersTable(pgClient: Client): Promise<void> {
+  await pgClient.query(ordersTableSchema);
+}
+
+const ordersTableSchema = `
   CREATE TABLE IF NOT EXISTS public.${ORDERS_TABLE_NAME}
   (
     id SERIAL PRIMARY KEY,
@@ -16,7 +20,3 @@ export const ordersTableSchema = `
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
   );
 `;
-
-export async function createOrdersTable(pgClient: Client): Promise<void> {
-  await pgClient.query(ordersTableSchema);
-}

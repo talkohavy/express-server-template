@@ -2,7 +2,11 @@ import type { Client } from 'pg';
 
 export const USERS_TABLE_NAME = 'users';
 
-export const usersTableSchema = `
+export async function createUsersTable(pgClient: Client): Promise<void> {
+  await pgClient.query(usersTableSchema);
+}
+
+const usersTableSchema = `
   CREATE TABLE IF NOT EXISTS public.${USERS_TABLE_NAME}
   (
     id SERIAL PRIMARY KEY,
@@ -16,7 +20,3 @@ export const usersTableSchema = `
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
   );
 `;
-
-export async function createUsersTable(pgClient: Client): Promise<void> {
-  await pgClient.query(usersTableSchema);
-}
