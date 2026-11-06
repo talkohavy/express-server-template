@@ -8,9 +8,7 @@ export function validateEnvVariables(): ValidEnv {
   if (error) {
     const messages = error.details
       .map((detail) => {
-        const provided = detail.context?.value;
-        const receivedStr = provided ? ` (received: "${provided}")` : '';
-        return `\t• ${detail.message}${receivedStr}`;
+        return `\t• ${detail.message}`;
       })
       .join('\n');
 
