@@ -1,3 +1,4 @@
+import { ForbiddenError } from '@src/core/errors';
 import { handleCors } from './handleCors';
 
 function checkOrigin(props: { isStrict: boolean; origin: string | undefined }): boolean {
@@ -42,5 +43,16 @@ describe('handleCors', () => {
     const actualResult = checkOrigin({ isStrict: false, origin: 'https://evil.com' });
 
     expect(actualResult).toBe(false);
+  });
+
+  it('should reject with a ForbiddenError, so the client gets a 403', () => {
+    const originHandler = handleCors(true);
+    let actualResult: Error | null = null;
+
+    originHandler('https://evil.com', (error: Error | null) => {
+      actualResult = error;
+    });
+
+    expect(actualResult).toBeInstanceOf(ForbiddenError);
   });
 });

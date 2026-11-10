@@ -1,3 +1,4 @@
+import { ForbiddenError } from '@src/core/errors';
 import { ALLOWED_DOMAINS, DOMAIN_REGEX } from '../constants';
 
 /**
@@ -7,7 +8,7 @@ import { ALLOWED_DOMAINS, DOMAIN_REGEX } from '../constants';
  * callback(null, true)
  *
  * When an origin is NOT allowed, the callback should be called like so:
- * callback(new Error('Not allowed by CORS'))
+ * callback(new ForbiddenError('Not allowed by CORS'))
  */
 export function handleCors(isStrict: boolean): any {
   return (origin: string, callback: (err: Error | null, origin?: any) => void) => {
@@ -16,6 +17,6 @@ export function handleCors(isStrict: boolean): any {
 
     if (isAllowed) return void callback(null, true);
 
-    callback(new Error('CORS Not allowed'), false);
+    callback(new ForbiddenError(`Origin ${origin} is not allowed by CORS`), false);
   };
 }

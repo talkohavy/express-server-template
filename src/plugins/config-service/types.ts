@@ -153,7 +153,7 @@ export type ValidEnv = {
   /**
    * Should be `true` in development, and `false` in production.
    *
-   * Whether a failed call between micro-services returns its raw error message to the client,
+   * Whether an unexpected error (including a failed call between micro-services) returns its raw message to the client,
    * instead of a generic one. Raw messages can leak internal details (hosts, ports, stack info).
    * @default false
    */

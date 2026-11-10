@@ -49,7 +49,14 @@ export class LoggerService {
   private addLogContext(data: Record<string, any> = {}) {
     const logContextMetadata = this.getLogMetadataFromContext(this.callContextService.getStore());
 
-    const enrichedLogMetadata = { data, ...logContextMetadata };
+    const hasError = data?.error instanceof Error;
+
+    if (!hasError) return { data, ...logContextMetadata };
+
+    // The logger serializes an error (name, message and stack) only when it sits at the top level.
+    const { error, ...restOfData } = data;
+
+    const enrichedLogMetadata = { data: restOfData, error, ...logContextMetadata };
 
     return enrichedLogMetadata;
   }

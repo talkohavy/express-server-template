@@ -8,10 +8,7 @@ export function joiBodyMiddleware(validationSchema: Joi.ObjectSchema<any>): any 
 
     const { error, value: castedValues } = validationSchema.validate(body);
 
-    if (error) {
-      console.log('Validation error', error);
-      throw new BadRequestError(error.message);
-    }
+    if (error) throw new BadRequestError(error.message);
 
     req.bodyParsed = castedValues;
 
