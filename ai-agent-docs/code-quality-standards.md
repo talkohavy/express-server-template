@@ -25,13 +25,14 @@
   See `src/common/constants/roles.ts` for a reference example in the codebase.
 
   Naming convention: the object is named in **plural** form (e.g. `RoleTypes`, `DimensionValueTypes`), and the derived type is named in the **singular** form of the object name plus a `Values` suffix (e.g. `RoleTypeValues`, `DimensionValueTypeValues`).
+
 - Prefer async/await syntax over .then()/.catch()
 - Prefer using the `function` keyword to define functions rather than using arrow functions or `const` function expressions.
 - Prefer typescript over javascript.
 - Prefer `Array.forEach` over `for of`.
 - Prefer optional chaining (e.g., `registration?.sync`) over using logical AND (`registration && registration.sync`) inside conditional statements.
-- A function's signature should always be 1 parameter called `props`. Avoid using func(a,b,c), and prefer using func(props), where `props` is `{a,b,c}`.
-- Always destruct the `props` argument of a function inside the function's body, never in the function's signature.
+- A function that needs two or more values takes one argument named `props` that holds them. A function that needs one value takes that value directly.
+- Destructure `props` inside the function body.
 - Avoid returning the output of a function directly as the input to another function. Always store the output in a variable first before passing it to another function.
 - Never return a promise. Always store the awaited result in a variable and then return that variable.
 
